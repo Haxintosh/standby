@@ -75,6 +75,8 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
     val serverPin by viewModel.serverPin.collectAsState()
     
     var burnInProtectionEnabled by remember { mutableStateOf(true) }
+    var protectionRatio by remember { mutableStateOf(1) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     
     // Launcher to pick custom HTML/CSS plugin
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -101,22 +103,24 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
                     modifier = Modifier.fillMaxSize()
                 )
                 if (burnInProtectionEnabled) {
-                    PixelPerfectBurnInMask(modifier = Modifier.fillMaxSize())
+                    PixelPerfectBurnInMask(
+                        modifier = Modifier.fillMaxSize(),
+                        protectionRatio = protectionRatio
+                    )
                 }
             }
         }
 
-        1
         // Unobtrusive Settings/Shield button to toggle OLED protection
         IconButton(
-            onClick = { burnInProtectionEnabled = !burnInProtectionEnabled },
+            onClick = { showSettingsDialog = true },
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(32.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
-                contentDescription = "Toggle OLED Protection",
+                contentDescription = "OLED Protection Settings",
                 tint = if (burnInProtectionEnabled) Color(0xFFD0BCFF) else Color.White.copy(alpha = 0.3f)
             )
         }
@@ -208,39 +212,140 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
         }
         
         // Pager indicator logic could go here, but omitted for immersive look
+        
+        if (showSettingsDialog) {
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                title = {
+                    Text(
+                        text = "OLED Burn-in Protection",
+                        color = Color(0xFFE6E1E5),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Enable Protection",
+                                color = Color(0xFFE6E1E5),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Switch(
+                                checked = burnInProtectionEnabled,
+                                onCheckedChange = { burnInProtectionEnabled = it }
+                            )
+                        }
+
+                        if (burnInProtectionEnabled) {
+                            val percentage = (protectionRatio.toFloat() / (protectionRatio + 1) * 100).toInt()
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Protection Strength",
+                                        color = Color(0xFF938F99),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "$percentage% Pixels Off",
+                                        color = Color(0xFFD0BCFF),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Slider(
+                                    value = protectionRatio.toFloat(),
+                                    onValueChange = { protectionRatio = it.toInt() },
+                                    valueRange = 1f..5f,
+                                    steps = 3,
+                                    colors = SliderDefaults.colors(
+                                        activeTrackColor = Color(0xFFD0BCFF),
+                                        inactiveTrackColor = Color(0x33D0BCFF),
+                                        thumbColor = Color(0xFFD0BCFF)
+                                    )
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Minimal (50%)",
+                                        color = Color(0xFF938F99),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                    Text(
+                                        text = "Maximum (83%)",
+                                        color = Color(0xFF938F99),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "Warning: Disabling protection may lead to screen burn-in on OLED displays.",
+                                color = Color(0xFFFFB4AB),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showSettingsDialog = false }
+                    ) {
+                        Text("Close", color = Color(0xFFD0BCFF))
+                    }
+                },
+                containerColor = Color(0xFF1C1B1F),
+                textContentColor = Color(0xFFE6E1E5)
+            )
+        }
     }
 }
 
 @Composable
 fun PixelPerfectBurnInMask(
     modifier: Modifier = Modifier,
+    protectionRatio: Int = 1,
     shiftIntervalMs: Long = 10000L
 ) {
-    var isShifted by remember { mutableStateOf(false) }
+    val n = (protectionRatio + 1).coerceAtLeast(2)
+    var shift by remember(n) { mutableStateOf(0) }
 
-    LaunchedEffect(shiftIntervalMs) {
+    LaunchedEffect(n, shiftIntervalMs) {
         while (true) {
             delay(shiftIntervalMs)
-            isShifted = !isShifted
+            shift = (shift + 1) % n
         }
     }
 
-    val shaderPaint = remember(isShifted) {
+    val shaderPaint = remember(n, shift) {
         android.graphics.Paint().apply {
-            val bmp = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+            val bmp = Bitmap.createBitmap(n, n, Bitmap.Config.ARGB_8888)
             val off = android.graphics.Color.BLACK
             val on = android.graphics.Color.TRANSPARENT
 
-            if (!isShifted) {
-                bmp.setPixel(0, 0, on)
-                bmp.setPixel(1, 0, off)
-                bmp.setPixel(0, 1, off)
-                bmp.setPixel(1, 1, on)
-            } else {
-                bmp.setPixel(0, 0, off)
-                bmp.setPixel(1, 0, on)
-                bmp.setPixel(0, 1, on)
-                bmp.setPixel(1, 1, off)
+            for (y in 0 until n) {
+                val activeX = (y + shift) % n
+                for (x in 0 until n) {
+                    if (x == activeX) {
+                        bmp.setPixel(x, y, on)
+                    } else {
+                        bmp.setPixel(x, y, off)
+                    }
+                }
             }
 
             shader = BitmapShader(bmp, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)

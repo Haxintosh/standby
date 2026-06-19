@@ -11,6 +11,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -25,4 +28,9 @@ class GreetingScreenshotTest {
 
     composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
   }
+}
+
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+  Text(text = "Hello $name!", modifier = modifier)
 }
