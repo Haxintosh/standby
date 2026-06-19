@@ -26,6 +26,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +79,23 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
     var burnInProtectionEnabled by remember { mutableStateOf(true) }
     var protectionRatio by remember { mutableStateOf(1) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var delayAfterInteraction by remember { mutableStateOf(false) }
+    var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    var isInactive by remember { mutableStateOf(true) }
+
+    LaunchedEffect(lastInteractionTime, delayAfterInteraction) {
+        if (delayAfterInteraction) {
+            isInactive = false
+            val elapsed = System.currentTimeMillis() - lastInteractionTime
+            val remaining = 5000L - elapsed
+            if (remaining > 0) {
+                delay(remaining)
+            }
+            isInactive = true
+        } else {
+            isInactive = true
+        }
+    }
     
     // Launcher to pick custom HTML/CSS plugin
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -91,6 +110,14 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0A0A0A))
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial)
+                        lastInteractionTime = System.currentTimeMillis()
+                    }
+                }
+            }
     ) {
         HorizontalPager(
             state = pagerState,
@@ -102,7 +129,7 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
                     htmlContent = pluginContent,
                     modifier = Modifier.fillMaxSize()
                 )
-                if (burnInProtectionEnabled) {
+                if (burnInProtectionEnabled && isInactive) {
                     PixelPerfectBurnInMask(
                         modifier = Modifier.fillMaxSize(),
                         protectionRatio = protectionRatio
@@ -246,6 +273,24 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
                         }
 
                         if (burnInProtectionEnabled) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Hide on touch (5s delay)",
+                                    color = Color(0xFFE6E1E5),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Switch(
+                                    checked = delayAfterInteraction,
+                                    onCheckedChange = { delayAfterInteraction = it }
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+
                             val percentage = (protectionRatio.toFloat() / (protectionRatio + 1) * 100).toInt()
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(
