@@ -14,6 +14,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Shader
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import kotlinx.coroutines.delay
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,6 +74,8 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
     val serverPort by viewModel.serverPort.collectAsState()
     val serverPin by viewModel.serverPin.collectAsState()
     
+    var burnInProtectionEnabled by remember { mutableStateOf(true) }
+    
     // Launcher to pick custom HTML/CSS plugin
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -85,13 +95,32 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val pluginContent = plugins[page]
-            PluginWebView(
-                htmlContent = pluginContent,
-                modifier = Modifier.fillMaxSize()
-            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                PluginWebView(
+                    htmlContent = pluginContent,
+                    modifier = Modifier.fillMaxSize()
+                )
+                if (burnInProtectionEnabled) {
+                    PixelPerfectBurnInMask(modifier = Modifier.fillMaxSize())
+                }
+            }
         }
 
         1
+        // Unobtrusive Settings/Shield button to toggle OLED protection
+        IconButton(
+            onClick = { burnInProtectionEnabled = !burnInProtectionEnabled },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Toggle OLED Protection",
+                tint = if (burnInProtectionEnabled) Color(0xFFD0BCFF) else Color.White.copy(alpha = 0.3f)
+            )
+        }
+
         // Unobtrusive + button to add a new layout plugin
         IconButton(
             onClick = { filePickerLauncher.launch("text/html") },
@@ -179,6 +208,51 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
         }
         
         // Pager indicator logic could go here, but omitted for immersive look
+    }
+}
+
+@Composable
+fun PixelPerfectBurnInMask(
+    modifier: Modifier = Modifier,
+    shiftIntervalMs: Long = 10000L
+) {
+    var isShifted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(shiftIntervalMs) {
+        while (true) {
+            delay(shiftIntervalMs)
+            isShifted = !isShifted
+        }
+    }
+
+    val shaderPaint = remember(isShifted) {
+        android.graphics.Paint().apply {
+            val bmp = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
+            val off = android.graphics.Color.BLACK
+            val on = android.graphics.Color.TRANSPARENT
+
+            if (!isShifted) {
+                bmp.setPixel(0, 0, on)
+                bmp.setPixel(1, 0, off)
+                bmp.setPixel(0, 1, off)
+                bmp.setPixel(1, 1, on)
+            } else {
+                bmp.setPixel(0, 0, off)
+                bmp.setPixel(1, 0, on)
+                bmp.setPixel(0, 1, on)
+                bmp.setPixel(1, 1, off)
+            }
+
+            shader = BitmapShader(bmp, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+        }
+    }
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawRect(
+                0f, 0f, size.width, size.height, shaderPaint
+            )
+        }
     }
 }
 
