@@ -18,3 +18,4 @@ local.properties
 .env.example
 debug.keystore
 /.idea/
+STYLE.md

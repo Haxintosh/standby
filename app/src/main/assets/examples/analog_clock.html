@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OLED Analog Clock - Smooth</title>
+    <style>
+        body {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 100vw;
+          height: 100vh;
+          background-color: #000;
+          margin: 0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          overflow: hidden;
+          box-sizing: border-box;
+        }
+
+        .clock-wrapper {
+          width: 100vh;
+          height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          box-sizing: border-box;
+          position: relative;
+        }
+
+        .clock {
+          width: 90vh;
+          height: 90vh;
+          background-color: #000;
+          border-radius: 50%;
+          position: relative;
+        }
+
+        /* Tick marks */
+        .tick {
+          position: absolute;
+          width: 0.6vh;
+          height: 1.8vh;
+          background-color: #666;
+          top: 1.8vh;
+          left: 50%;
+          margin-left: -0.3vh;
+          border-radius: 0.6vh;
+          transform-origin: 50% 43.2vh; /* 45vh radius minus 1.8vh top offset */
+        }
+
+        .tick.main {
+          width: 0.9vh;
+          height: 3.6vh;
+          background-color: #ccc;
+          margin-left: -0.45vh;
+          border-radius: 0.9vh;
+        }
+
+        /* Numbers 1-12 */
+        .number {
+          position: absolute;
+          color: white;
+          font-size: 7.2vh;
+          font-weight: 300;
+          width: 9vh;
+          height: 9vh;
+          text-align: center;
+          line-height: 9vh;
+          top: 50%;
+          left: 50%;
+          margin-top: -4.5vh;
+          margin-left: -4.5vh;
+        }
+
+        /* Clock Hands */
+        .hand {
+          position: absolute;
+          bottom: 50%;
+          left: 50%;
+          transform-origin: bottom center;
+          border-radius: 3vh;
+          z-index: 10;
+        }
+
+        .hour {
+          width: 2.4vh;
+          height: 25vh;
+          background-color: white;
+          margin-left: -1.2vh;
+        }
+
+        .minute {
+          width: 1.8vh;
+          height: 38vh;
+          background-color: white;
+          margin-left: -0.9vh;
+        }
+
+        .second {
+          width: 0.6vh;
+          height: 42vh;
+          background-color: #ff9500;
+          margin-left: -0.3vh;
+          z-index: 11;
+          border-radius: 0.3vh;
+        }
+
+        /* Second hand tail */
+        .second::after {
+          content: '';
+          position: absolute;
+          width: 0.6vh;
+          height: 8vh;
+          background-color: #ff9500;
+          top: 100%;
+          left: 0;
+          border-radius: 0.3vh;
+        }
+
+        /* Center Dot */
+        .center-dot {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 2.4vh;
+          height: 2.4vh;
+          background-color: #000;
+          border: 0.9vh solid #ff9500;
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 12;
+        }
+    </style>
+</head>
+<body>
+
+<div class="clock-wrapper">
+    <div class="clock" id="clock">
+        <div class="hand hour" id="hour"></div>
+        <div class="hand minute" id="minute"></div>
+        <div class="hand second" id="second"></div>
+        <div class="center-dot"></div>
+    </div>
+</div>
+
+<script>
+    const clock = document.getElementById('clock');
+    const hourHand = document.getElementById('hour');
+    const minuteHand = document.getElementById('minute');
+    const secondHand = document.getElementById('second');
+
+    // Generate ticks and numbers
+    for (let i = 1; i <= 60; i++) {
+      // Ticks
+      const tick = document.createElement('div');
+      tick.className = `tick ${i % 5 === 0 ? 'main' : ''}`;
+      tick.style.transform = `rotate(${i * 6}deg)`;
+      clock.appendChild(tick);
+
+      // Numbers (only every 5th tick)
+      if (i % 5 === 0) {
+        const number = document.createElement('div');
+        number.className = 'number';
+        number.innerText = i / 5;
+
+        const angle = (i * 6 - 90) * (Math.PI / 180);
+        const radius = 31.5; // in vh units (45vh * 0.70)
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+
+        number.style.transform = `translate(${x}vh, ${y}vh)`;
+        clock.appendChild(number);
+      }
+    }
+
+    // Update clock hands continuously
+    function updateClock() {
+      const now = new Date();
+      const milliseconds = now.getMilliseconds();
+      const seconds = now.getSeconds();
+      const minutes = now.getMinutes();
+      const hours = now.getHours();
+
+      // Calculate exact times including fractional parts for a smooth sweep
+      const exactSeconds = seconds + (milliseconds / 1000);
+      const exactMinutes = minutes + (exactSeconds / 60);
+      const exactHours = (hours % 12) + (exactMinutes / 60);
+
+      const secondsDegrees = exactSeconds * 6; // 360 / 60
+      const minutesDegrees = exactMinutes * 6;
+      const hoursDegrees = exactHours * 30; // 360 / 12
+
+      secondHand.style.transform = `rotate(${secondsDegrees}deg)`;
+      minuteHand.style.transform = `rotate(${minutesDegrees}deg)`;
+      hourHand.style.transform = `rotate(${hoursDegrees}deg)`;
+
+      // Recursively call for the next frame
+      requestAnimationFrame(updateClock);
+    }
+
+    // Initialize
+    requestAnimationFrame(updateClock);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Timer</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #121212;
+            --accent-red: #ff4b4b;
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+            --divider: #2a2a2a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            padding: 32px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        /* --- Left Panel: Timer --- */
+        .timer-panel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .ring-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .progress-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring__bg {
+            stroke: #222;
+            stroke-width: 8;
+            fill: transparent;
+        }
+
+        .progress-ring__circle {
+            stroke: var(--accent-red);
+            stroke-width: 8;
+            fill: transparent;
+            stroke-linecap: round;
+            /* Dash array set via JS */
+        }
+
+        .timer-content {
+            text-align: center;
+            z-index: 1;
+            margin-top: 10px;
+        }
+
+        .time-display {
+            font-size: 64px;
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .status-text {
+            color: var(--accent-red);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            height: 36px;
+        }
+
+        .btn {
+            background-color: #2a2a2a;
+            border: none;
+            border-radius: 18px;
+            color: white;
+            padding: 0 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .btn:active {
+            background-color: #404040;
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .btn.hidden {
+            display: none;
+        }
+
+        /* --- Right Panel: Details --- */
+        .details-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .tagline-group {
+            margin-bottom: 32px;
+        }
+
+        .tagline-label {
+            color: var(--accent-red);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .tagline-title {
+            font-size: 28px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .icon-box {
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-box.red { color: var(--accent-red); }
+        .icon-box.gray { color: var(--text-muted); }
+
+        .info-text-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        .info-sub {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card timer-panel">
+        <div class="ring-container">
+            <svg class="progress-ring" viewBox="0 0 250 250">
+                <circle class="progress-ring__bg" cx="125" cy="125" r="115"></circle>
+                <circle class="progress-ring__circle" cx="125" cy="125" r="115"></circle>
+            </svg>
+            <div class="timer-content">
+                <div class="time-display" id="time-display" style="cursor: pointer;" title="Double click to skip for testing">25:00</div>
+                <div class="status-text" id="status-text">FOCUS</div>
+                <div class="controls">
+                    <button class="btn" id="btn-toggle">
+                        <svg viewBox="0 0 24 24" id="icon-toggle">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                    </button>
+                    <button class="btn hidden" id="btn-reset">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card details-panel">
+        <div class="tagline-group">
+            <div class="tagline-label">POMODORO</div>
+            <div class="tagline-title">Focus on<br>what matters.</div>
+        </div>
+
+        <div class="info-row">
+            <div class="icon-box red" id="session-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <polyline points="12 8 12 12 15 15"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="4"></line>
+                </svg>
+            </div>
+            <div class="info-text-group">
+                <div class="info-label" id="session-label">Session</div>
+                <div class="info-value" id="session-value">1 of 4</div>
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="icon-box gray" id="break-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.9 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/>
+                </svg>
+            </div>
+            <div class="info-text-group">
+                <div class="info-label" id="next-label">Break</div>
+                <div class="info-value" id="next-value">5:00</div>
+                <div class="info-sub" id="next-sub">UP NEXT</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const timeDisplay = document.getElementById('time-display');
+    const statusText = document.getElementById('status-text');
+    const circle = document.querySelector('.progress-ring__circle');
+    const btnToggle = document.getElementById('btn-toggle');
+    const btnReset = document.getElementById('btn-reset');
+    const iconToggle = document.getElementById('icon-toggle');
+    
+    const sessionValue = document.getElementById('session-value');
+    const nextLabel = document.getElementById('next-label');
+    const nextValue = document.getElementById('next-value');
+    const nextSub = document.getElementById('next-sub');
+    const sessionIcon = document.getElementById('session-icon');
+    const breakIcon = document.getElementById('break-icon');
+
+    // SVG Circle Math
+    const radius = circle.r.baseVal.value;
+    const circumference = radius * 2 * Math.PI;
+    circle.style.strokeDasharray = `${circumference} ${circumference}`;
+    circle.style.strokeDashoffset = 0;
+
+    // Timer Durations
+    const DURATION_FOCUS = 0.5 * 60 * 1000;       // 25 minutes in ms
+    const DURATION_SHORT_BREAK = 5 * 60 * 1000;   // 5 minutes in ms
+    const DURATION_LONG_BREAK = 15 * 60 * 1000;   // 15 minutes in ms
+
+    // Timer State Machine
+    let mode = "focus"; // "focus", "break", "long_break"
+    let session = 1;    // 1 to 4
+    let timeRemaining = DURATION_FOCUS;
+    let isRunning = false;
+    let lastFrameTime = performance.now();
+    let rafId = null;
+
+    // SVG Icons
+    const PATH_PAUSE = "M6 19h4V5H6v14zm8-14v14h4V5h-4z";
+    const PATH_PLAY = "M8 5v14l11-7z";
+
+    function getPhaseDuration() {
+        if (mode === "focus") return DURATION_FOCUS;
+        if (mode === "break") return DURATION_SHORT_BREAK;
+        if (mode === "long_break") return DURATION_LONG_BREAK;
+        return DURATION_FOCUS;
+    }
+
+    function updateDisplay() {
+        // Format MM:SS
+        const totalSeconds = Math.ceil(timeRemaining / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        timeDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+        // Calculate offset (Smooth Progress)
+        const totalDuration = getPhaseDuration();
+        const progress = timeRemaining / totalDuration;
+        const offset = circumference - (progress * circumference);
+        circle.style.strokeDashoffset = offset;
+    }
+
+    function updateButtons() {
+        if (isRunning) {
+            btnReset.classList.add('hidden');
+            iconToggle.innerHTML = `<path d="${PATH_PAUSE}"/>`;
+        } else {
+            btnReset.classList.remove('hidden');
+            iconToggle.innerHTML = `<path d="${PATH_PLAY}"/>`;
+        }
+    }
+
+    function updateUIForPhase() {
+        const isFocus = mode === "focus";
+        
+        // Dynamically change theme accent color: Red for focus, Green for breaks
+        document.documentElement.style.setProperty('--accent-red', isFocus ? '#ff4b4b' : '#10b981');
+
+        // Status Text
+        if (mode === "focus") {
+            statusText.textContent = "FOCUS";
+        } else if (mode === "break") {
+            statusText.textContent = "BREAK";
+        } else if (mode === "long_break") {
+            statusText.textContent = "LONG BREAK";
+        }
+
+        // Sessions count indicator
+        sessionValue.textContent = `${session} of 4`;
+
+        // Next phase information display
+        if (isFocus) {
+            nextLabel.textContent = "Break";
+            nextValue.textContent = session === 4 ? "15:00" : "5:00";
+            nextSub.textContent = "UP NEXT";
+            
+            sessionIcon.classList.add('red');
+            sessionIcon.classList.remove('gray');
+            breakIcon.classList.add('gray');
+            breakIcon.classList.remove('red');
+        } else {
+            nextLabel.textContent = "Focus";
+            nextValue.textContent = "25:00";
+            nextSub.textContent = "UP NEXT";
+            
+            sessionIcon.classList.remove('red');
+            sessionIcon.classList.add('gray');
+            breakIcon.classList.remove('gray');
+            breakIcon.classList.add('red');
+        }
+    }
+
+    function playNotificationSound() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const playTone = (freq, startTime, duration) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, startTime);
+                gain.gain.setValueAtTime(0.3, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                osc.start(startTime);
+                osc.stop(startTime + duration);
+            };
+            const now = audioCtx.currentTime;
+            // Play double chime
+            playTone(587.33, now, 0.25);      // D5
+            playTone(880.00, now + 0.12, 0.35); // A5
+        } catch (e) {
+            console.error("Audio error: ", e);
+        }
+    }
+
+    function handlePhaseEnd() {
+        playNotificationSound();
+
+        if (mode === "focus") {
+            // End of Focus -> Break
+            if (session < 4) {
+                mode = "break";
+                timeRemaining = DURATION_SHORT_BREAK;
+            } else {
+                mode = "long_break";
+                timeRemaining = DURATION_LONG_BREAK;
+            }
+        } else {
+            // End of Break -> Focus
+            if (mode === "long_break") {
+                session = 1;
+            } else {
+                session += 1;
+            }
+            mode = "focus";
+            timeRemaining = DURATION_FOCUS;
+        }
+
+        lastFrameTime = performance.now();
+        updateUIForPhase();
+        updateDisplay();
+    }
+
+    function timerLoop(timestamp) {
+        if (!isRunning) return;
+
+        const deltaTime = timestamp - lastFrameTime;
+        lastFrameTime = timestamp;
+
+        timeRemaining -= deltaTime;
+
+        if (timeRemaining <= 0) {
+            timeRemaining = 0;
+            isRunning = false;
+            updateDisplay();
+            updateButtons();
+            handlePhaseEnd();
+            return;
+        }
+
+        updateDisplay();
+        rafId = requestAnimationFrame(timerLoop);
+    }
+
+    function toggleTimer() {
+        if (isRunning) {
+            // Pause
+            isRunning = false;
+            cancelAnimationFrame(rafId);
+        } else {
+            // Resume/Play
+            isRunning = true;
+            lastFrameTime = performance.now();
+            rafId = requestAnimationFrame(timerLoop);
+        }
+        updateButtons();
+    }
+
+    function resetTimer() {
+        isRunning = false;
+        cancelAnimationFrame(rafId);
+        timeRemaining = getPhaseDuration();
+        updateDisplay();
+        updateButtons();
+    }
+
+    // Double-click skip timer helper for easy debugging/testing
+    timeDisplay.addEventListener('dblclick', () => {
+        if (timeRemaining > 4000) {
+            timeRemaining = 4000;
+            lastFrameTime = performance.now();
+            updateDisplay();
+            // If paused, auto-resume to trigger transition immediately
+            if (!isRunning) {
+                toggleTimer();
+            }
+        }
+    });
+
+    // Event Listeners
+    btnToggle.addEventListener('click', toggleTimer);
+    btnReset.addEventListener('click', resetTimer);
+
+    // Initialization
+    updateUIForPhase();
+    updateDisplay();
+    updateButtons();
+</script>
+</body>
+</html>
