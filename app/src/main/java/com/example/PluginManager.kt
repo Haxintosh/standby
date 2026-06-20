@@ -125,6 +125,7 @@ object PluginManager {
             val description = manifestJson.optString("description", "")
             val author = manifestJson.optString("author", "Unknown")
             val version = manifestJson.optString("version", "1.0.0")
+            val size = manifestJson.optString("size", "full")
 
             val permissions = mutableListOf<String>()
             val permissionsArray = manifestJson.optJSONArray("permissions")
@@ -172,6 +173,7 @@ object PluginManager {
                 description = description,
                 author = author,
                 version = version,
+                size = size,
                 permissions = permissions,
                 networkWhitelist = networkWhitelist,
                 minAppVersion = minAppVersion,
@@ -313,6 +315,67 @@ object PluginManager {
         }
     }
 
+    private fun getLayoutFile(context: Context): File {
+        return File(getPluginsDir(context), "pages_layout.json")
+    }
+
+    data class LayoutEntry(
+        val type: String,
+        val pluginLocalId: String?,
+        val leftLocalId: String?,
+        val rightLocalId: String?,
+        val pageId: String
+    )
+
+    fun loadLayoutConfig(context: Context): List<LayoutEntry> {
+        val file = getLayoutFile(context)
+        if (!file.exists()) return emptyList()
+        return try {
+            val content = file.readText()
+            val json = JSONObject(content)
+            val array = json.optJSONArray("pages") ?: JSONArray()
+            val list = mutableListOf<LayoutEntry>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(
+                    LayoutEntry(
+                        type = obj.getString("type"),
+                        pluginLocalId = if (obj.has("plugin_local_id") && !obj.isNull("plugin_local_id")) obj.getString("plugin_local_id") else null,
+                        leftLocalId = if (obj.has("left_local_id") && !obj.isNull("left_local_id")) obj.getString("left_local_id") else null,
+                        rightLocalId = if (obj.has("right_local_id") && !obj.isNull("right_local_id")) obj.getString("right_local_id") else null,
+                        pageId = if (obj.has("page_id") && !obj.isNull("page_id")) obj.getString("page_id") else java.util.UUID.randomUUID().toString()
+                    )
+                )
+            }
+            list
+        } catch (e: java.lang.Exception) {
+            Log.e(TAG, "Error loading layout config", e)
+            emptyList()
+        }
+    }
+
+    fun saveLayoutConfig(context: Context, layout: List<LayoutEntry>) {
+        val file = getLayoutFile(context)
+        try {
+            val json = JSONObject()
+            val array = JSONArray()
+            for (entry in layout) {
+                val obj = JSONObject().apply {
+                    put("type", entry.type)
+                    put("plugin_local_id", entry.pluginLocalId ?: JSONObject.NULL)
+                    put("left_local_id", entry.leftLocalId ?: JSONObject.NULL)
+                    put("right_local_id", entry.rightLocalId ?: JSONObject.NULL)
+                    put("page_id", entry.pageId)
+                }
+                array.put(obj)
+            }
+            json.put("pages", array)
+            file.writeText(json.toString(2))
+        } catch (e: java.lang.Exception) {
+            Log.e(TAG, "Error saving layout config", e)
+        }
+    }
+
     fun getFileName(context: Context, uri: Uri): String? {
         var result: String? = null
         if (uri.scheme == "content") {
@@ -336,5 +399,26 @@ object PluginManager {
             }
         }
         return result
+    }
+
+    fun deletePlugin(context: Context, localId: String): Boolean {
+        return try {
+            val registry = loadRegistry(context).toMutableList()
+            val entryIndex = registry.indexOfFirst { it.localId == localId }
+            if (entryIndex == -1) return false
+            
+            val entry = registry[entryIndex]
+            registry.removeAt(entryIndex)
+            saveRegistry(context, registry)
+            
+            val folder = File(getPluginsDir(context), entry.folderName)
+            if (folder.exists()) {
+                folder.deleteRecursively()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting plugin $localId", e)
+            false
+        }
     }
 }

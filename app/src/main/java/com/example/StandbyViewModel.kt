@@ -3,6 +3,7 @@ package com.example
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,9 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     
     private val _plugins = MutableStateFlow<List<PluginModel>>(emptyList())
     val plugins: StateFlow<List<PluginModel>> = _plugins.asStateFlow()
+
+    private val _standbyPages = MutableStateFlow<List<StandbyPage>>(emptyList())
+    val standbyPages: StateFlow<List<StandbyPage>> = _standbyPages.asStateFlow()
 
     private val sharedPreferences = application.getSharedPreferences("standby_settings", Context.MODE_PRIVATE)
 
@@ -74,7 +78,216 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
             _plugins.value = list
+            
+            rebuildStandbyPages()
         }
+    }
+
+    private fun rebuildStandbyPages() {
+        val context = getApplication<Application>()
+        val installed = _plugins.value
+        val layout = PluginManager.loadLayoutConfig(context)
+        
+        val pagesList = mutableListOf<StandbyPage>()
+        
+        if (layout.isEmpty()) {
+            val fullPlugins = installed.filter { it.isBuiltIn || it.size == "full" }
+            val halfPlugins = installed.filter { !it.isBuiltIn && it.size == "half" }
+            
+            for (p in fullPlugins) {
+                pagesList.add(StandbyPage.FullWidth(p))
+            }
+            
+            for (i in halfPlugins.indices step 2) {
+                val left = halfPlugins[i]
+                val right = if (i + 1 < halfPlugins.size) halfPlugins[i + 1] else halfPlugins[i]
+                pagesList.add(StandbyPage.HalfWidth(left, right, "default_half_$i"))
+            }
+            
+            if (pagesList.isEmpty()) {
+                val defaultClock = installed.firstOrNull { it.localId == "com.example.builtin.clock" }
+                if (defaultClock != null) {
+                    pagesList.add(StandbyPage.FullWidth(defaultClock))
+                }
+            }
+        } else {
+            for (entry in layout) {
+                if (entry.type == "full") {
+                    val plugin = installed.firstOrNull { it.localId == entry.pluginLocalId }
+                        ?: installed.firstOrNull { it.localId == "com.example.builtin.clock" }
+                    if (plugin != null) {
+                        pagesList.add(StandbyPage.FullWidth(plugin, entry.pageId))
+                    }
+                } else {
+                    val left = installed.firstOrNull { it.localId == entry.leftLocalId }
+                        ?: installed.firstOrNull { it.size == "half" }
+                        ?: installed.firstOrNull { it.localId == "com.example.builtin.clock" }
+                    
+                    val right = installed.firstOrNull { it.localId == entry.rightLocalId }
+                        ?: installed.firstOrNull { it.size == "half" }
+                        ?: installed.firstOrNull { it.localId == "com.example.builtin.clock" }
+                    
+                    if (left != null && right != null) {
+                        pagesList.add(StandbyPage.HalfWidth(left, right, entry.pageId))
+                    }
+                }
+            }
+        }
+        _standbyPages.value = pagesList
+    }
+
+    private fun ensureLayoutConfigExists(context: Context) {
+        val file = File(PluginManager.getPluginsDir(context), "pages_layout.json")
+        if (!file.exists()) {
+            val installed = _plugins.value
+            val pagesList = mutableListOf<PluginManager.LayoutEntry>()
+            
+            val fullPlugins = installed.filter { it.isBuiltIn || it.size == "full" }
+            val halfPlugins = installed.filter { !it.isBuiltIn && it.size == "half" }
+            
+            for (p in fullPlugins) {
+                pagesList.add(
+                    PluginManager.LayoutEntry(
+                        type = "full",
+                        pluginLocalId = p.localId,
+                        leftLocalId = null,
+                        rightLocalId = null,
+                        pageId = java.util.UUID.randomUUID().toString()
+                    )
+                )
+            }
+            
+            for (i in halfPlugins.indices step 2) {
+                val left = halfPlugins[i]
+                val right = if (i + 1 < halfPlugins.size) halfPlugins[i + 1] else halfPlugins[i]
+                pagesList.add(
+                    PluginManager.LayoutEntry(
+                        type = "half",
+                        pluginLocalId = null,
+                        leftLocalId = left.localId,
+                        rightLocalId = right.localId,
+                        pageId = "half_page_$i"
+                    )
+                )
+            }
+            
+            if (pagesList.isEmpty()) {
+                pagesList.add(
+                    PluginManager.LayoutEntry(
+                        type = "full",
+                        pluginLocalId = "com.example.builtin.clock",
+                        leftLocalId = null,
+                        rightLocalId = null,
+                        pageId = "default_clock_page"
+                    )
+                )
+            }
+            
+            PluginManager.saveLayoutConfig(context, pagesList)
+        }
+    }
+
+    fun addPageSlot(type: String) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val installed = _plugins.value
+        val layout = PluginManager.loadLayoutConfig(context).toMutableList()
+        
+        val defaultFull = installed.firstOrNull { it.localId == "com.example.builtin.clock" }?.localId ?: ""
+        val defaultHalf = installed.firstOrNull { it.size == "half" }?.localId ?: defaultFull
+
+        if (type == "full") {
+            layout.add(
+                PluginManager.LayoutEntry(
+                    type = "full",
+                    pluginLocalId = defaultFull,
+                    leftLocalId = null,
+                    rightLocalId = null,
+                    pageId = java.util.UUID.randomUUID().toString()
+                )
+            )
+        } else {
+            layout.add(
+                PluginManager.LayoutEntry(
+                    type = "half",
+                    pluginLocalId = null,
+                    leftLocalId = defaultHalf,
+                    rightLocalId = defaultHalf,
+                    pageId = java.util.UUID.randomUUID().toString()
+                )
+            )
+        }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
+    }
+
+    fun removePageSlot(pageId: String) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val layout = PluginManager.loadLayoutConfig(context).toMutableList()
+        layout.removeAll { it.pageId == pageId }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
+    }
+
+    fun movePageSlot(fromIndex: Int, toIndex: Int) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val layout = PluginManager.loadLayoutConfig(context).toMutableList()
+        if (fromIndex in layout.indices && toIndex in layout.indices) {
+            val item = layout.removeAt(fromIndex)
+            layout.add(toIndex, item)
+            PluginManager.saveLayoutConfig(context, layout)
+            rebuildStandbyPages()
+        }
+    }
+
+    fun updatePageSlotPlugin(pageId: String, isLeft: Boolean, newPluginLocalId: String) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val layout = PluginManager.loadLayoutConfig(context).map { entry ->
+            if (entry.pageId == pageId) {
+                if (isLeft) {
+                    entry.copy(leftLocalId = newPluginLocalId)
+                } else {
+                    entry.copy(rightLocalId = newPluginLocalId)
+                }
+            } else entry
+        }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
+    }
+
+    fun updatePageSlotFull(pageId: String, newPluginLocalId: String) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val layout = PluginManager.loadLayoutConfig(context).map { entry ->
+            if (entry.pageId == pageId) {
+                entry.copy(pluginLocalId = newPluginLocalId)
+            } else entry
+        }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
+    }
+
+    fun updatePageSlotType(pageId: String, newType: String) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val installed = _plugins.value
+        val defaultFull = installed.firstOrNull { it.localId == "com.example.builtin.clock" }?.localId ?: ""
+        val defaultHalf = installed.firstOrNull { it.size == "half" }?.localId ?: defaultFull
+
+        val layout = PluginManager.loadLayoutConfig(context).map { entry ->
+            if (entry.pageId == pageId) {
+                if (newType == "full") {
+                    entry.copy(type = "full", pluginLocalId = defaultFull, leftLocalId = null, rightLocalId = null)
+                } else {
+                    entry.copy(type = "half", pluginLocalId = null, leftLocalId = defaultHalf, rightLocalId = defaultHalf)
+                }
+            } else entry
+        }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
     }
 
     fun updateCustomizationValue(pluginLocalId: String, varName: String, varValue: String) {
@@ -103,6 +316,29 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         _plugins.value = updatedList
+
+        val updatedPages = _standbyPages.value.map { page ->
+            when (page) {
+                is StandbyPage.FullWidth -> {
+                    if (page.plugin.localId == pluginLocalId) {
+                        val updatedPlugin = updatedList.first { it.localId == pluginLocalId }
+                        page.copy(plugin = updatedPlugin)
+                    } else page
+                }
+                is StandbyPage.HalfWidth -> {
+                    val newLeft = if (page.leftPlugin.localId == pluginLocalId) {
+                        updatedList.first { it.localId == pluginLocalId }
+                    } else page.leftPlugin
+                    
+                    val newRight = if (page.rightPlugin.localId == pluginLocalId) {
+                        updatedList.first { it.localId == pluginLocalId }
+                    } else page.rightPlugin
+                    
+                    page.copy(leftPlugin = newLeft, rightPlugin = newRight)
+                }
+            }
+        }
+        _standbyPages.value = updatedPages
     }
 
     fun setBurnInProtectionEnabled(enabled: Boolean) {
@@ -152,19 +388,24 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
                 viewModelScope.launch {
                     try {
                         val context = getApplication<Application>()
-                        if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
-                            file.inputStream().use { input ->
-                                PluginManager.importZipPlugin(context, input)
+                        val cachedFile = File(context.cacheDir, "uploaded_plugin_temp_" + System.currentTimeMillis())
+                        file.copyTo(cachedFile, overwrite = true)
+                        
+                        try {
+                            if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
+                                cachedFile.inputStream().use { input ->
+                                    PluginManager.importZipPlugin(context, input)
+                                }
+                            } else {
+                                val htmlContent = cachedFile.readText()
+                                PluginManager.importHtmlPlugin(context, htmlContent, "Uploaded Plugin")
                             }
-                        } else {
-                            val htmlContent = file.readText()
-                            PluginManager.importHtmlPlugin(context, htmlContent, "Uploaded Plugin")
+                            loadPlugins()
+                        } finally {
+                            cachedFile.delete()
                         }
-                        loadPlugins()
                     } catch (e: Exception) {
                         e.printStackTrace()
-                    } finally {
-                        file.delete()
                     }
                 }
             }
@@ -205,6 +446,13 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    fun deletePlugin(localId: String) {
+        val context = getApplication<Application>()
+        if (PluginManager.deletePlugin(context, localId)) {
+            loadPlugins()
         }
     }
 

@@ -78,7 +78,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = viewModel()) {
     val plugins by viewModel.plugins.collectAsState()
-    val pagerState = rememberPagerState(pageCount = { plugins.size })
+    val standbyPages by viewModel.standbyPages.collectAsState()
+    val pagerState = rememberPagerState(pageCount = { standbyPages.size })
     val context = LocalContext.current
     
     val serverIp by viewModel.serverIp.collectAsState()
@@ -95,6 +96,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
 
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCustomizationDialog by remember { mutableStateOf(false) }
+    var showLayoutsDialog by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isInactive by remember { mutableStateOf(true) }
     var isControlsInactive by remember { mutableStateOf(false) }
@@ -188,12 +190,30 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             state = pagerState,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            val plugin = plugins[page]
+            val standbyPage = standbyPages.getOrNull(page)
             Box(modifier = Modifier.fillMaxSize()) {
-                PluginWebView(
-                    plugin = plugin,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (standbyPage != null) {
+                    when (standbyPage) {
+                        is StandbyPage.FullWidth -> {
+                            PluginWebView(
+                                plugin = standbyPage.plugin,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        is StandbyPage.HalfWidth -> {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                PluginWebView(
+                                    plugin = standbyPage.leftPlugin,
+                                    modifier = Modifier.weight(1f).fillMaxHeight()
+                                )
+                                PluginWebView(
+                                    plugin = standbyPage.rightPlugin,
+                                    modifier = Modifier.weight(1f).fillMaxHeight()
+                                )
+                            }
+                        }
+                    }
+                }
                 if (burnInProtectionEnabled && isInactive) {
                     PixelPerfectBurnInMask(
                         modifier = Modifier.fillMaxSize(),
@@ -215,14 +235,14 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             IconButton(
                 onClick = { showSettingsDialog = true },
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), CircleShape)
                     .size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "OLED Protection Settings",
-                    tint = if (burnInProtectionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }
@@ -237,25 +257,30 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 .padding(32.dp)
         ) {
             IconButton(
-                onClick = { filePickerLauncher.launch("*/*") },
+                onClick = { showLayoutsDialog = true },
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), CircleShape)
                     .size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Load Custom Plugin",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }
 
-        val activePlugin = plugins.getOrNull(pagerState.currentPage)
+        val activePage = standbyPages.getOrNull(pagerState.currentPage)
+        val hasCustomization = when (activePage) {
+            is StandbyPage.FullWidth -> activePage.plugin.customizations.isNotEmpty()
+            is StandbyPage.HalfWidth -> activePage.leftPlugin.customizations.isNotEmpty() || activePage.rightPlugin.customizations.isNotEmpty()
+            null -> false
+        }
 
         // Unobtrusive Edit/Customization button on bottom left
         AnimatedVisibility(
-            visible = activePlugin != null && activePlugin.customizations.isNotEmpty() && (!hideControlsOnIdle || !isControlsInactive),
+            visible = activePage != null && hasCustomization && (!hideControlsOnIdle || !isControlsInactive),
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -265,14 +290,14 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             IconButton(
                 onClick = { showCustomizationDialog = true },
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
                     .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), CircleShape)
                     .size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Customize Widget",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }
@@ -388,11 +413,38 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             modifier = Modifier.fillMaxSize()
         ) {
             CustomizationDialog(
-                activePlugin = activePlugin,
+                activePage = activePage,
                 onCustomizationValueChange = { localId, name, value ->
                     viewModel.updateCustomizationValue(localId, name, value)
                 },
                 onDismissRequest = { showCustomizationDialog = false }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showLayoutsDialog,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LayoutsDialog(
+                plugins = plugins,
+                standbyPages = standbyPages,
+                onAddPageSlot = { viewModel.addPageSlot(it) },
+                onRemovePageSlot = { viewModel.removePageSlot(it) },
+                onMovePageSlot = { fromIndex, toIndex -> viewModel.movePageSlot(fromIndex, toIndex) },
+                onUpdatePageSlotPlugin = { pageId, isLeft, pluginId ->
+                    viewModel.updatePageSlotPlugin(pageId, isLeft, pluginId)
+                },
+                onUpdatePageSlotFull = { pageId, pluginId ->
+                    viewModel.updatePageSlotFull(pageId, pluginId)
+                },
+                onUpdatePageSlotType = { pageId, type ->
+                    viewModel.updatePageSlotType(pageId, type)
+                },
+                onDeletePlugin = { localId -> viewModel.deletePlugin(localId) },
+                onImportPluginClick = { filePickerLauncher.launch("*/*") },
+                onDismissRequest = { showLayoutsDialog = false }
             )
         }
     }

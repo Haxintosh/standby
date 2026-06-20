@@ -7,6 +7,7 @@ data class PluginModel(
     val description: String,
     val author: String,
     val version: String,
+    val size: String = "full", // "full" or "half"
     val permissions: List<String>,
     val networkWhitelist: List<String>,
     val minAppVersion: Int,

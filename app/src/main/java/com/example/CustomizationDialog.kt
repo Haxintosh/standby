@@ -20,11 +20,11 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun CustomizationDialog(
-    activePlugin: PluginModel?,
+    activePage: StandbyPage?,
     onCustomizationValueChange: (String, String, String) -> Unit, // pluginLocalId, varName, varValue
     onDismissRequest: () -> Unit
 ) {
-    if (activePlugin == null) return
+    if (activePage == null) return
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -51,7 +51,10 @@ fun CustomizationDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Customize: ${activePlugin.name}",
+                        text = when (activePage) {
+                            is StandbyPage.FullWidth -> "Customize: ${activePage.plugin.name}"
+                            is StandbyPage.HalfWidth -> "Customize Widgets"
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -68,157 +71,205 @@ fun CustomizationDialog(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Customization Options List (Card layout filling the space)
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                ),
-                shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
-                )
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+            // Content
+            when (activePage) {
+                is StandbyPage.FullWidth -> {
+                    PluginCustomizationColumn(
+                        plugin = activePage.plugin,
+                        onCustomizationValueChange = onCustomizationValueChange,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    )
+                }
+                is StandbyPage.HalfWidth -> {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        PluginCustomizationColumn(
+                            plugin = activePage.leftPlugin,
+                            onCustomizationValueChange = onCustomizationValueChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                        PluginCustomizationColumn(
+                            plugin = activePage.rightPlugin,
+                            onCustomizationValueChange = onCustomizationValueChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PluginCustomizationColumn(
+    plugin: PluginModel,
+    onCustomizationValueChange: (String, String, String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Text(
+                text = plugin.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            if (plugin.customizations.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (activePlugin.customizations.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                    Text(
+                        text = "This widget has no customization settings.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                plugin.customizations.forEach { (key, option) ->
+                    val currentValue = option.value ?: option.default
+                    val isModified = option.value != null && option.value != option.default
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Variable Header with Reset button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "This widget has no customization settings.",
+                                text = key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() },
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                        }
-                    } else {
-                        activePlugin.customizations.forEach { (key, option) ->
-                            val currentValue = option.value ?: option.default
-                            val isModified = option.value != null && option.value != option.default
-
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // Variable Header with Reset button
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                            
+                            // Reset Button - enabled only if the value has been modified
+                            if (isModified) {
+                                TextButton(
+                                    onClick = {
+                                        onCustomizationValueChange(plugin.localId, key, option.default)
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(28.dp)
                                 ) {
-                                    Text(
-                                        text = key.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() },
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Reset to Default",
+                                        modifier = Modifier.size(14.dp)
                                     )
-                                    
-                                    // Reset Button - enabled only if the value has been modified
-                                    if (isModified) {
-                                        TextButton(
-                                            onClick = {
-                                                onCustomizationValueChange(activePlugin.localId, key, option.default)
-                                            },
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                            modifier = Modifier.height(28.dp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Reset",
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Variable Input Control
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                when (option.type.lowercase().trim()) {
+                                    "bool", "boolean" -> {
+                                        val isChecked = currentValue.toBoolean()
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Refresh,
-                                                contentDescription = "Reset to Default",
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = "Reset",
-                                                style = MaterialTheme.typography.labelSmall
+                                                text = if (isChecked) "Enabled" else "Disabled",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Switch(
+                                                checked = isChecked,
+                                                onCheckedChange = { newValue ->
+                                                    onCustomizationValueChange(plugin.localId, key, newValue.toString())
+                                                },
+                                                colors = SwitchDefaults.colors(
+                                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                                                )
                                             )
                                         }
                                     }
-                                }
-                                
-                                // Variable Input Control
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        when (option.type.lowercase().trim()) {
-                                            "bool", "boolean" -> {
-                                                val isChecked = currentValue.toBoolean()
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        text = if (isChecked) "Enabled" else "Disabled",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                    Switch(
-                                                        checked = isChecked,
-                                                        onCheckedChange = { newValue ->
-                                                            onCustomizationValueChange(activePlugin.localId, key, newValue.toString())
-                                                        },
-                                                        colors = SwitchDefaults.colors(
-                                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                                        )
-                                                    )
-                                                }
+                                    "color" -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            val parsedColor = try {
+                                                Color(android.graphics.Color.parseColor(currentValue))
+                                            } catch (e: Exception) {
+                                                Color.Gray
                                             }
-                                            "color" -> {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                                ) {
-                                                    val parsedColor = try {
-                                                        Color(android.graphics.Color.parseColor(currentValue))
-                                                    } catch (e: Exception) {
-                                                        Color.Gray
-                                                    }
-                                                    
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(40.dp)
-                                                            .background(parsedColor, RoundedCornerShape(8.dp))
-                                                            .border(
-                                                                androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                                                                RoundedCornerShape(8.dp)
-                                                            )
+                                            
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .background(parsedColor, RoundedCornerShape(8.dp))
+                                                    .border(
+                                                        androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                                        RoundedCornerShape(8.dp)
                                                     )
-                                                    
-                                                    OutlinedTextField(
-                                                        value = currentValue,
-                                                        onValueChange = { newValue ->
-                                                            onCustomizationValueChange(activePlugin.localId, key, newValue)
-                                                        },
-                                                        placeholder = { Text("#RRGGBB") },
-                                                        singleLine = true,
-                                                        modifier = Modifier.weight(1f)
-                                                    )
-                                                }
-                                            }
-                                            else -> {
-                                                OutlinedTextField(
-                                                    value = currentValue,
-                                                    onValueChange = { newValue ->
-                                                        onCustomizationValueChange(activePlugin.localId, key, newValue)
-                                                    },
-                                                    singleLine = true,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            }
+                                            )
+                                            
+                                            OutlinedTextField(
+                                                value = currentValue,
+                                                onValueChange = { newValue ->
+                                                    onCustomizationValueChange(plugin.localId, key, newValue)
+                                                },
+                                                placeholder = { Text("#RRGGBB") },
+                                                singleLine = true,
+                                                modifier = Modifier.weight(1f)
+                                            )
                                         }
+                                    }
+                                    else -> {
+                                        OutlinedTextField(
+                                            value = currentValue,
+                                            onValueChange = { newValue ->
+                                                onCustomizationValueChange(plugin.localId, key, newValue)
+                                            },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
                                     }
                                 }
                             }
