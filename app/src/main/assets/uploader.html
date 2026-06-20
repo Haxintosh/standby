@@ -66,15 +66,15 @@
 </head>
 <body>
 <div class="container">
-    <h2>Upload Plugin HTML</h2>
+    <h2>Upload Plugin (.html or .zip)</h2>
     <form id="uploadForm">
         <div class="form-group">
             <label for="pin">Passcode PIN</label>
             <input type="text" id="pin" placeholder="Enter PIN" autocomplete="off" required>
         </div>
         <div class="form-group">
-            <label for="file">HTML File</label>
-            <input type="file" id="file" accept=".html" required>
+            <label for="file">Plugin File (.html, .zip)</label>
+            <input type="file" id="file" accept=".html,.zip" required>
         </div>
         <button type="submit" id="submitBtn">Upload Plugin</button>
     </form>
@@ -98,14 +98,14 @@
         statusDiv.style.display = 'none';
 
         try {
-            const htmlContent = await file.text();
+            const contentType = file.name.endsWith('.zip') ? 'application/zip' : 'text/html';
             const response = await fetch('/upload', {
                 method: 'POST',
                 headers: {
                     'X-PIN': pinInput.value,
-                    'Content-Type': 'text/html'
+                    'Content-Type': contentType
                 },
-                body: htmlContent
+                body: file
             });
 
             const text = await response.text();

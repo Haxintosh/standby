@@ -5,13 +5,22 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.webkit.JavascriptInterface
+import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class SensorBridge(private val context: Context) {
+class SensorBridge(
+    private val context: Context,
+    private val allowedPermissions: List<String>,
+    private val customizationsProvider: () -> String
+) {
     @JavascriptInterface
     fun getBatteryLevel(): Int {
+        if (!allowedPermissions.contains("battery")) {
+            Log.w("SensorBridge", "Blocked access to battery level: Permission not declared in manifest")
+            return 50 // Default fallback value
+        }
         val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
             context.registerReceiver(null, ifilter)
         }
@@ -37,5 +46,10 @@ class SensorBridge(private val context: Context) {
         } catch (e: Exception) {
             getCurrentTime()
         }
+    }
+
+    @JavascriptInterface
+    fun getCustomizations(): String {
+        return customizationsProvider()
     }
 }

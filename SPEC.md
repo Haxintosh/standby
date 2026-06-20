@@ -23,6 +23,7 @@ This file details the specifics of the plugin.
   "description": "string (brief explanation of functionality)",
   "author": "string (name of the creator)",
   "version": "string (semantic version, e.g., '1.0.0')",
+  "size": "half/full (size of the plugin, whether it handles 2 at the same time or just a single one)",
   "permissions": [
     "string (requested capability, e.g., 'battery', 'gyro', 'health', 'gps')"
   ],

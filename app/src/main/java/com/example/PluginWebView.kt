@@ -2,80 +2,159 @@ package com.example
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import android.util.Log
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")
+@Suppress("DEPRECATION")
 @Composable
 fun PluginWebView(
-    htmlContent: String,
+    plugin: PluginModel,
     modifier: Modifier = Modifier
 ) {
+    // Generate the customization JSON to pass to the JS bridge and injection script
+    val customizationsJson = generateCustomizationsJson(plugin.customizations)
+    val currentCustomizations = rememberUpdatedState(customizationsJson)
+
     AndroidView(
-        modifier = modifier
-            .fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
                 layoutParams = android.view.ViewGroup.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                // Use transparent or the theme background color
                 setBackgroundColor(android.graphics.Color.parseColor("#0A0A0A"))
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    // Enable file access for complex plugins that might load local assets
                     allowFileAccess = true
                     allowFileAccessFromFileURLs = true
                     allowUniversalAccessFromFileURLs = true
                     cacheMode = WebSettings.LOAD_DEFAULT
-                    
-                    // These can cause issues with 1:1 mobile scaling
                     useWideViewPort = false
                     loadWithOverviewMode = false
                     setSupportZoom(false)
                 }
                 
-                // Add the secure bridge
-                addJavascriptInterface(SensorBridge(context), "AndroidSensors")
+                // Set custom sensor bridge passing the allowed permissions and a dynamic customization provider
+                addJavascriptInterface(
+                    SensorBridge(context, plugin.permissions) { currentCustomizations.value },
+                    "AndroidSensors"
+                )
                 
                 webChromeClient = object : WebChromeClient() {
-                    override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                        Log.d("PluginWebView", consoleMessage?.message() ?: "")
+                    override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                        Log.d("PluginWebView", "[${plugin.name}] " + (consoleMessage?.message() ?: ""))
                         return true
                     }
                 }
                 
                 webViewClient = object : WebViewClient() {
+                    override fun shouldInterceptRequest(
+                        view: WebView?,
+                        request: WebResourceRequest?
+                    ): WebResourceResponse? {
+                        val url = request?.url ?: return null
+                        val scheme = url.scheme
+                        val host = url.host
+                        
+                        // Allow local assets and UI serving (file:// or local.app)
+                        if (scheme == "file" || host == "local.app") {
+                            return null
+                        }
+                        
+                        // Check manifest network whitelist
+                        val isAllowed = plugin.networkWhitelist.any { allowedDomain ->
+                            host != null && (host == allowedDomain || host.endsWith(".$allowedDomain"))
+                        }
+                        
+                        if (!isAllowed) {
+                            Log.w("PluginWebView", "Blocked unwhitelisted network request to $url")
+                            return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
+                        }
+                        
+                        return null
+                    }
+
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        // Trigger initial update from JS if needed
+                        // Run initial injection script
+                        val initScript = generateCustomizationInjectionScript(plugin.customizations)
+                        view?.evaluateJavascript(initScript, null)
                     }
                 }
                 
-                // Load initial content
-                loadDataWithBaseURL("https://local.app/", htmlContent, "text/html", "UTF-8", null)
+                val baseUrl = if (plugin.directoryPath != null) "file://${plugin.directoryPath}/" else "https://local.app/"
+                loadDataWithBaseURL(baseUrl, plugin.htmlContent, "text/html", "UTF-8", null)
+                tag = Pair(plugin.htmlContent, customizationsJson)
             }
         },
         update = { webView ->
-            // Only reload if the content has actually changed to avoid unnecessary reloads
-            val currentContent = webView.tag as? String
-            if (currentContent != htmlContent) {
-                Log.d("PluginWebView", "Updating WebView with new content")
-                webView.loadDataWithBaseURL("https://local.app/", htmlContent, "text/html", "UTF-8", null)
-                webView.tag = htmlContent
+            val baseUrl = if (plugin.directoryPath != null) "file://${plugin.directoryPath}/" else "https://local.app/"
+            val tagPair = webView.tag as? Pair<*, *>
+            val currentContent = tagPair?.first as? String
+            val currentCustomization = tagPair?.second as? String
+            
+            if (currentContent != plugin.htmlContent) {
+                Log.d("PluginWebView", "Updating WebView with new content for ${plugin.name}")
+                webView.loadDataWithBaseURL(baseUrl, plugin.htmlContent, "text/html", "UTF-8", null)
+                webView.tag = Pair(plugin.htmlContent, customizationsJson)
+            } else if (currentCustomization != customizationsJson) {
+                Log.d("PluginWebView", "Injecting dynamic customization updates for ${plugin.name}")
+                val updateScript = generateCustomizationInjectionScript(plugin.customizations)
+                webView.evaluateJavascript(updateScript, null)
+                webView.tag = Pair(plugin.htmlContent, customizationsJson)
             }
         }
     )
+}
+
+private fun generateCustomizationsJson(customizations: Map<String, CustomizationOption>): String {
+    val json = org.json.JSONObject()
+    customizations.forEach { (name, option) ->
+        val activeValue = option.value ?: option.default
+        when (option.type.lowercase().trim()) {
+            "bool", "boolean" -> json.put(name, activeValue.toBoolean())
+            "number" -> json.put(name, activeValue.toDoubleOrNull() ?: 0.0)
+            else -> json.put(name, activeValue)
+        }
+    }
+    return json.toString()
+}
+
+private fun generateCustomizationInjectionScript(customizations: Map<String, CustomizationOption>): String {
+    val jsBuilder = java.lang.StringBuilder()
+    val changeObjectBuilder = java.lang.StringBuilder("{")
+    
+    customizations.forEach { (name, option) ->
+        val activeValue = option.value ?: option.default
+        val escapedValue = when (option.type.lowercase().trim()) {
+            "bool", "boolean" -> activeValue.toBoolean().toString()
+            "number" -> activeValue.toDoubleOrNull()?.toString() ?: "0"
+            else -> "\"${activeValue.replace("\"", "\\\"")}\""
+        }
+        
+        changeObjectBuilder.append("\"$name\": $escapedValue,")
+
+        if (option.target?.lowercase() == "css") {
+            jsBuilder.append("document.documentElement.style.setProperty('--$name', $escapedValue);\n")
+        } else {
+            jsBuilder.append("window.$name = $escapedValue;\n")
+        }
+    }
+    
+    if (changeObjectBuilder.length > 1) {
+        changeObjectBuilder.deleteCharAt(changeObjectBuilder.length - 1)
+    }
+    changeObjectBuilder.append("}")
+    
+    jsBuilder.append("window.onCustomizationChanged?.($changeObjectBuilder);\n")
+    return jsBuilder.toString()
 }

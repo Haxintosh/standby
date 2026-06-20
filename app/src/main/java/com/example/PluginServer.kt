@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 
 class PluginServer(
     private val context: Context,
-    private val onPluginReceived: (String) -> Unit
+    private val onPluginReceived: (java.io.File, String) -> Unit
 ) {
     private var server: MyNanoHttpd? = null
     var port: Int = 0
@@ -110,14 +110,29 @@ class PluginServer(
                 }
 
                 return try {
-                    val files = HashMap<String, String>()
-                    session.parseBody(files)
-                    val htmlContent = files["postData"]
+                    val contentLengthStr = session.headers["content-length"] ?: session.headers["Content-Length"]
+                    val contentLength = contentLengthStr?.toIntOrNull() ?: 0
+                    val contentType = session.headers["content-type"] ?: session.headers["Content-Type"] ?: "text/html"
 
-                    if (htmlContent == null || htmlContent.isBlank()) {
-                        createResponse(Response.Status.BAD_REQUEST, "text/plain; charset=utf-8", "Empty HTML content. Please choose a valid HTML file.")
+                    if (contentLength <= 0) {
+                        createResponse(Response.Status.BAD_REQUEST, "text/plain; charset=utf-8", "Empty upload content.")
                     } else {
-                        onPluginReceived(htmlContent)
+                        // Create a temp file to store the raw bytes from the input stream
+                        val tempFile = java.io.File.createTempFile("upload_", ".tmp", context.cacheDir)
+                        tempFile.outputStream().use { output ->
+                            val input = session.inputStream
+                            val buffer = ByteArray(8192)
+                            var bytesRemaining = contentLength
+                            while (bytesRemaining > 0) {
+                                val toRead = Math.min(buffer.size, bytesRemaining)
+                                val read = input.read(buffer, 0, toRead)
+                                if (read == -1) break
+                                output.write(buffer, 0, read)
+                                bytesRemaining -= read
+                            }
+                        }
+
+                        onPluginReceived(tempFile, contentType)
                         createResponse(Response.Status.OK, "text/plain; charset=utf-8", "Success! Plugin updated.")
                     }
                 } catch (e: Exception) {

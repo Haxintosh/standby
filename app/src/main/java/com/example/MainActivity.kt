@@ -18,6 +18,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -93,6 +94,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val lowRefreshRateValue by viewModel.lowRefreshRateValue.collectAsState()
 
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showCustomizationDialog by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isInactive by remember { mutableStateOf(true) }
     var isControlsInactive by remember { mutableStateOf(false) }
@@ -186,10 +188,10 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             state = pagerState,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            val pluginContent = plugins[page]
+            val plugin = plugins[page]
             Box(modifier = Modifier.fillMaxSize()) {
                 PluginWebView(
-                    htmlContent = pluginContent,
+                    plugin = plugin,
                     modifier = Modifier.fillMaxSize()
                 )
                 if (burnInProtectionEnabled && isInactive) {
@@ -211,12 +213,16 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 .padding(32.dp)
         ) {
             IconButton(
-                onClick = { showSettingsDialog = true }
+                onClick = { showSettingsDialog = true },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), CircleShape)
+                    .size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "OLED Protection Settings",
-                    tint = if (burnInProtectionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+                    tint = if (burnInProtectionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
             }
         }
@@ -231,17 +237,47 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 .padding(32.dp)
         ) {
             IconButton(
-                onClick = { filePickerLauncher.launch("text/html") }
+                onClick = { filePickerLauncher.launch("*/*") },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), CircleShape)
+                    .size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "Load Custom Plugin",
-                    tint = Color.White.copy(alpha = 0.3f)
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        val activePlugin = plugins.getOrNull(pagerState.currentPage)
+
+        // Unobtrusive Edit/Customization button on bottom left
+        AnimatedVisibility(
+            visible = activePlugin != null && activePlugin.customizations.isNotEmpty() && (!hideControlsOnIdle || !isControlsInactive),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(32.dp)
+        ) {
+            IconButton(
+                onClick = { showCustomizationDialog = true },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), CircleShape)
+                    .size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Customize Widget",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
         
-        // Native bubble on top indicating the uploader server URL and PIN passcode
+        // indicator for PIN and server location
         AnimatedVisibility(
             visible = serverPort > 0 && (!hideControlsOnIdle || !isControlsInactive),
             enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
@@ -271,22 +307,21 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Status dot
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(Color(0xFF8FFF9F), shape = CircleShape)
-                    )
+                    // status
+//                    Box(
+//                        modifier = Modifier
+//                            .size(8.dp)
+//                            .background(Color(0xFF8FFF9F), shape = CircleShape)
+//                    )
                     
-                    // IP / Port Text
+                    // addr
                     Text(
                         text = "Uploader: http://$serverIp:$serverPort",
                         color = Color(0xFFE6E1E5),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    
-                    // Vertical Divider
+
                     Box(
                         modifier = Modifier
                             .height(16.dp)
@@ -294,7 +329,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                             .background(Color(0x33E6E1E5))
                     )
                     
-                    // PIN code
+                    // pin
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -316,9 +351,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 }
             }
         }
-        
-        // Pager indicator logic could go here, but omitted for immersive look
-        
+
         AnimatedVisibility(
             visible = showSettingsDialog,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
@@ -345,6 +378,21 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 onLowRefreshRateValueChange = { viewModel.setLowRefreshRateValue(it) },
                 supportedRefreshRates = supportedRefreshRates,
                 onDismissRequest = { showSettingsDialog = false }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showCustomizationDialog,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            CustomizationDialog(
+                activePlugin = activePlugin,
+                onCustomizationValueChange = { localId, name, value ->
+                    viewModel.updateCustomizationValue(localId, name, value)
+                },
+                onDismissRequest = { showCustomizationDialog = false }
             )
         }
     }

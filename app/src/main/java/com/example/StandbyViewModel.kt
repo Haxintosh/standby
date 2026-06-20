@@ -9,11 +9,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 class StandbyViewModel(application: Application) : AndroidViewModel(application) {
     
-    private val _plugins = MutableStateFlow<List<String>>(listOf(DefaultPlugins.BUILT_IN_CLOCK_PLUGIN))
-    val plugins: StateFlow<List<String>> = _plugins.asStateFlow()
+    private val _plugins = MutableStateFlow<List<PluginModel>>(emptyList())
+    val plugins: StateFlow<List<PluginModel>> = _plugins.asStateFlow()
 
     private val sharedPreferences = application.getSharedPreferences("standby_settings", Context.MODE_PRIVATE)
 
@@ -50,9 +51,58 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     val serverIp: StateFlow<String> = _serverIp.asStateFlow()
 
     init {
+        loadPlugins()
         if (sharedPreferences.getBoolean("server_enabled", true)) {
             startServer()
         }
+    }
+
+    fun loadPlugins() {
+        viewModelScope.launch {
+            val list = mutableListOf<PluginModel>()
+            
+            // Add built-in clock plugin first
+            list.add(DefaultPlugins.getBuiltInClockPlugin(sharedPreferences))
+
+            // Load registered plugins from disk
+            val context = getApplication<Application>()
+            val registry = PluginManager.loadRegistry(context)
+            for (entry in registry) {
+                val plugin = PluginManager.loadPluginDirectory(context, entry.folderName, entry.localId)
+                if (plugin != null) {
+                    list.add(plugin)
+                }
+            }
+            _plugins.value = list
+        }
+    }
+
+    fun updateCustomizationValue(pluginLocalId: String, varName: String, varValue: String) {
+        val context = getApplication<Application>()
+        val currentList = _plugins.value
+        val updatedList = currentList.map { plugin ->
+            if (plugin.localId == pluginLocalId) {
+                if (plugin.isBuiltIn) {
+                    sharedPreferences.edit().putString("builtin_customization_${pluginLocalId}_${varName}", varValue).apply()
+                    val updatedCustomizations = plugin.customizations.mapValues { (key, option) ->
+                        if (key == varName) option.copy(value = varValue) else option
+                    }
+                    plugin.copy(customizations = updatedCustomizations)
+                } else {
+                    plugin.directoryPath?.let { dirPath ->
+                        val folderName = File(dirPath).name
+                        PluginManager.saveCustomizationValue(context, pluginLocalId, folderName, varName, varValue)
+                    }
+                    val updatedCustomizations = plugin.customizations.mapValues { (key, option) ->
+                        if (key == varName) option.copy(value = varValue) else option
+                    }
+                    plugin.copy(customizations = updatedCustomizations)
+                }
+            } else {
+                plugin
+            }
+        }
+        _plugins.value = updatedList
     }
 
     fun setBurnInProtectionEnabled(enabled: Boolean) {
@@ -98,10 +148,24 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         if (pluginServer != null) return
         val server = PluginServer(
             context = getApplication(),
-            onPluginReceived = { newHtml ->
+            onPluginReceived = { file, contentType ->
                 viewModelScope.launch {
-                    // Clear the webview and replace with the newly uploaded plugin HTML file
-                    _plugins.value = listOf(newHtml)
+                    try {
+                        val context = getApplication<Application>()
+                        if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
+                            file.inputStream().use { input ->
+                                PluginManager.importZipPlugin(context, input)
+                            }
+                        } else {
+                            val htmlContent = file.readText()
+                            PluginManager.importHtmlPlugin(context, htmlContent, "Uploaded Plugin")
+                        }
+                        loadPlugins()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        file.delete()
+                    }
                 }
             }
         )
@@ -128,10 +192,15 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     fun loadPluginFromFile(context: Context, uri: Uri) {
         viewModelScope.launch {
             try {
+                val fileName = PluginManager.getFileName(context, uri) ?: "imported_plugin.zip"
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val content = inputStream.bufferedReader().readText()
-                    // When loading from file picker, also clear and show only the loaded plugin
-                    _plugins.value = listOf(content)
+                    if (fileName.endsWith(".zip")) {
+                        PluginManager.importZipPlugin(context, inputStream)
+                    } else {
+                        val htmlContent = inputStream.bufferedReader().readText()
+                        PluginManager.importHtmlPlugin(context, htmlContent, fileName)
+                    }
+                    loadPlugins()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

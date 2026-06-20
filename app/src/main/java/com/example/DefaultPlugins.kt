@@ -1,7 +1,36 @@
 package com.example
 
+import android.content.SharedPreferences
+
 object DefaultPlugins {
-    val BUILT_IN_CLOCK_PLUGIN = """
+    fun getBuiltInClockPlugin(prefs: SharedPreferences): PluginModel {
+        val clockColor = prefs.getString("builtin_customization_com.example.builtin.clock_clockColor", "#D0BCFF") ?: "#D0BCFF"
+        
+        return PluginModel(
+            localId = "com.example.builtin.clock",
+            manifestId = "com.example.builtin.clock",
+            name = "Default Clock",
+            description = "Immersive digital clock with battery indicator",
+            author = "System",
+            version = "1.0.0",
+            permissions = listOf("battery"),
+            networkWhitelist = emptyList(),
+            minAppVersion = 1,
+            directoryPath = null,
+            htmlContent = BUILT_IN_CLOCK_PLUGIN,
+            customizations = mapOf(
+                "clockColor" to CustomizationOption(
+                    type = "color",
+                    default = "#D0BCFF",
+                    target = "css",
+                    value = clockColor
+                )
+            ),
+            isBuiltIn = true
+        )
+    }
+
+    private val BUILT_IN_CLOCK_PLUGIN = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -53,8 +82,8 @@ object DefaultPlugins {
       letter-spacing: -0.05em;
       color: #E6E1E5;
       margin: 0;
-      /* Simulate the two-tone look by using a text gradient */
-      background: linear-gradient(to bottom, #E6E1E5 40%, #D0BCFF 60%);
+      /* Simulate the two-tone look by using a text gradient and customizable --clockColor variable */
+      background: linear-gradient(to bottom, #E6E1E5 40%, var(--clockColor, #D0BCFF) 60%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-align: right;
@@ -79,7 +108,7 @@ object DefaultPlugins {
     }
     #battery-fill {
       height: 100%;
-      background: #D0BCFF;
+      background: var(--clockColor, #D0BCFF);
       width: 0%;
       transition: width 1s ease-in-out;
     }
