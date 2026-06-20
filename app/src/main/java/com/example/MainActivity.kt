@@ -1,6 +1,9 @@
 package com.example
 
 import android.os.Bundle
+import android.os.Build
+import android.view.Display
+import android.content.Context
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,6 +18,11 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Shader
@@ -59,7 +67,7 @@ class MainActivity : ComponentActivity() {
     enableEdgeToEdge()
     setContent {
       MyApplicationTheme(darkTheme = true) {
-        StandbyScreen()
+        StandbyScreen(window = window)
       }
     }
   }
@@ -67,7 +75,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
+fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = viewModel()) {
     val plugins by viewModel.plugins.collectAsState()
     val pagerState = rememberPagerState(pageCount = { plugins.size })
     val context = LocalContext.current
@@ -75,13 +83,48 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
     val serverIp by viewModel.serverIp.collectAsState()
     val serverPort by viewModel.serverPort.collectAsState()
     val serverPin by viewModel.serverPin.collectAsState()
+    val isServerRunning by viewModel.isServerRunning.collectAsState()
     
-    var burnInProtectionEnabled by remember { mutableStateOf(true) }
-    var protectionRatio by remember { mutableStateOf(1) }
+    val burnInProtectionEnabled by viewModel.burnInProtectionEnabled.collectAsState()
+    val delayAfterInteraction by viewModel.delayAfterInteraction.collectAsState()
+    val protectionRatio by viewModel.protectionRatio.collectAsState()
+    val hideControlsOnIdle by viewModel.hideControlsOnIdle.collectAsState()
+    val lowRefreshRateEnabled by viewModel.lowRefreshRateEnabled.collectAsState()
+    val lowRefreshRateValue by viewModel.lowRefreshRateValue.collectAsState()
+
     var showSettingsDialog by remember { mutableStateOf(false) }
-    var delayAfterInteraction by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isInactive by remember { mutableStateOf(true) }
+    var isControlsInactive by remember { mutableStateOf(false) }
+
+    val display = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display
+        } else {
+            @Suppress("DEPRECATION")
+            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
+        }
+    }
+    
+    val supportedRefreshRates = remember(display) {
+        val modes = display?.supportedModes ?: emptyArray()
+        modes.map { Math.round(it.refreshRate) }
+            .distinct()
+            .sorted()
+    }
+
+    // Coerce the saved/default refresh rate value to the lowest supported rate if invalid
+    LaunchedEffect(supportedRefreshRates, lowRefreshRateValue) {
+        if (supportedRefreshRates.isNotEmpty() && lowRefreshRateValue !in supportedRefreshRates) {
+            viewModel.setLowRefreshRateValue(supportedRefreshRates.first())
+        }
+    }
+
+    LaunchedEffect(lastInteractionTime) {
+        isControlsInactive = false
+        delay(5000L)
+        isControlsInactive = true
+    }
 
     LaunchedEffect(lastInteractionTime, delayAfterInteraction) {
         if (delayAfterInteraction) {
@@ -94,6 +137,26 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
             isInactive = true
         } else {
             isInactive = true
+        }
+    }
+
+    // LaunchedEffect to handle display refresh rate changes based on idle time
+    LaunchedEffect(lastInteractionTime, lowRefreshRateEnabled, lowRefreshRateValue) {
+        if (lowRefreshRateEnabled) {
+            // Restore default refresh rate immediately on user interaction
+            setWindowRefreshRate(window, 0)
+            
+            // Wait for 5 seconds of inactivity
+            delay(5000L)
+            
+            // Find target mode for low refresh rate
+            val targetMode = display?.supportedModes?.firstOrNull { Math.round(it.refreshRate) == lowRefreshRateValue }
+            if (targetMode != null) {
+                setWindowRefreshRate(window, targetMode.modeId)
+            }
+        } else {
+            // If feature is disabled, ensure screen is at default rate
+            setWindowRefreshRate(window, 0)
         }
     }
     
@@ -139,38 +202,54 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
         }
 
         // Unobtrusive Settings/Shield button to toggle OLED protection
-        IconButton(
-            onClick = { showSettingsDialog = true },
+        AnimatedVisibility(
+            visible = !hideControlsOnIdle || !isControlsInactive,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(32.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "OLED Protection Settings",
-                tint = if (burnInProtectionEnabled) Color(0xFFD0BCFF) else Color.White.copy(alpha = 0.3f)
-            )
+            IconButton(
+                onClick = { showSettingsDialog = true }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "OLED Protection Settings",
+                    tint = if (burnInProtectionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+                )
+            }
         }
 
         // Unobtrusive + button to add a new layout plugin
-        IconButton(
-            onClick = { filePickerLauncher.launch("text/html") },
+        AnimatedVisibility(
+            visible = !hideControlsOnIdle || !isControlsInactive,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(32.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Load Custom Plugin",
-                tint = Color.White.copy(alpha = 0.3f)
-            )
+            IconButton(
+                onClick = { filePickerLauncher.launch("text/html") }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Load Custom Plugin",
+                    tint = Color.White.copy(alpha = 0.3f)
+                )
+            }
         }
         
         // Native bubble on top indicating the uploader server URL and PIN passcode
-        if (serverPort > 0) {
+        AnimatedVisibility(
+            visible = serverPort > 0 && (!hideControlsOnIdle || !isControlsInactive),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
                     .padding(top = 24.dp)
                     .background(
                         color = Color(0xCC121214),
@@ -240,121 +319,32 @@ fun StandbyScreen(viewModel: StandbyViewModel = viewModel()) {
         
         // Pager indicator logic could go here, but omitted for immersive look
         
-        if (showSettingsDialog) {
-            AlertDialog(
-                onDismissRequest = { showSettingsDialog = false },
-                title = {
-                    Text(
-                        text = "OLED Burn-in Protection",
-                        color = Color(0xFFE6E1E5),
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Enable Protection",
-                                color = Color(0xFFE6E1E5),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Switch(
-                                checked = burnInProtectionEnabled,
-                                onCheckedChange = { burnInProtectionEnabled = it }
-                            )
-                        }
-
-                        if (burnInProtectionEnabled) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Hide on touch (5s delay)",
-                                    color = Color(0xFFE6E1E5),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Switch(
-                                    checked = delayAfterInteraction,
-                                    onCheckedChange = { delayAfterInteraction = it }
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            val percentage = (protectionRatio.toFloat() / (protectionRatio + 1) * 100).toInt()
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Protection Strength",
-                                        color = Color(0xFF938F99),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                    Text(
-                                        text = "$percentage% Pixels Off",
-                                        color = Color(0xFFD0BCFF),
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Slider(
-                                    value = protectionRatio.toFloat(),
-                                    onValueChange = { protectionRatio = it.toInt() },
-                                    valueRange = 1f..5f,
-                                    steps = 3,
-                                    colors = SliderDefaults.colors(
-                                        activeTrackColor = Color(0xFFD0BCFF),
-                                        inactiveTrackColor = Color(0x33D0BCFF),
-                                        thumbColor = Color(0xFFD0BCFF)
-                                    )
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Minimal (50%)",
-                                        color = Color(0xFF938F99),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                    Text(
-                                        text = "Maximum (83%)",
-                                        color = Color(0xFF938F99),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
-                            }
-                        } else {
-                            Text(
-                                text = "Warning: Disabling protection may lead to screen burn-in on OLED displays.",
-                                color = Color(0xFFFFB4AB),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = { showSettingsDialog = false }
-                    ) {
-                        Text("Close", color = Color(0xFFD0BCFF))
-                    }
-                },
-                containerColor = Color(0xFF1C1B1F),
-                textContentColor = Color(0xFFE6E1E5)
+        AnimatedVisibility(
+            visible = showSettingsDialog,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            SettingsDialog(
+                burnInProtectionEnabled = burnInProtectionEnabled,
+                onBurnInProtectionEnabledChange = { viewModel.setBurnInProtectionEnabled(it) },
+                delayAfterInteraction = delayAfterInteraction,
+                onDelayAfterInteractionChange = { viewModel.setDelayAfterInteraction(it) },
+                protectionRatio = protectionRatio,
+                onProtectionRatioChange = { viewModel.setProtectionRatio(it) },
+                serverEnabled = isServerRunning,
+                onServerEnabledChange = { viewModel.setServerEnabled(it) },
+                serverIp = serverIp,
+                serverPort = serverPort,
+                serverPin = serverPin,
+                hideControlsOnIdle = hideControlsOnIdle,
+                onHideControlsOnIdleChange = { viewModel.setHideControlsOnIdle(it) },
+                lowRefreshRateEnabled = lowRefreshRateEnabled,
+                onLowRefreshRateEnabledChange = { viewModel.setLowRefreshRateEnabled(it) },
+                lowRefreshRateValue = lowRefreshRateValue,
+                onLowRefreshRateValueChange = { viewModel.setLowRefreshRateValue(it) },
+                supportedRefreshRates = supportedRefreshRates,
+                onDismissRequest = { showSettingsDialog = false }
             )
         }
     }
@@ -403,6 +393,18 @@ fun PixelPerfectBurnInMask(
                 0f, 0f, size.width, size.height, shaderPaint
             )
         }
+    }
+}
+
+private fun setWindowRefreshRate(window: android.view.Window, modeId: Int) {
+    try {
+        val layoutParams = window.attributes
+        if (layoutParams.preferredDisplayModeId != modeId) {
+            layoutParams.preferredDisplayModeId = modeId
+            window.attributes = layoutParams
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 }
 

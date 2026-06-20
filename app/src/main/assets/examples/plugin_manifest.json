@@ -1,0 +1,14 @@
+{
+  "id": "string (unique identifier, e.g., 'com.example.myclock')",
+  "name": "string (human-readable name)",
+  "description": "string (brief explanation of functionality)",
+  "author": "string (name of the creator)",
+  "version": "string (semantic version, e.g., '1.0.0')",
+  "permissions": [
+    "string (requested capability, e.g., 'battery', 'sensors', 'health')"
+  ],
+  "network_whitelist": [
+    "string (allowed domain, e.g., 'api.example.com')"
+  ],
+  "min_app_version": "integer (minimum versionCode required, e.g., 1)"
+}
