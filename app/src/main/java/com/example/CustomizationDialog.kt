@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun CustomizationDialog(
     activePage: StandbyPage?,
-    onCustomizationValueChange: (String, String, String) -> Unit, // pluginLocalId, varName, varValue
+    onCustomizationValueChange: (String, String, String) -> Unit, // plugin id, variable name, variable value
     onDismissRequest: () -> Unit
 ) {
     if (activePage == null) return
@@ -36,7 +36,7 @@ fun CustomizationDialog(
                 .safeDrawingPadding()
                 .padding(24.dp)
         ) {
-            // Header Row
+            // header row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -71,7 +71,7 @@ fun CustomizationDialog(
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Content
+            // content
             when (activePage) {
                 is StandbyPage.FullWidth -> {
                     PluginCustomizationColumn(
@@ -162,7 +162,7 @@ fun PluginCustomizationColumn(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Variable Header with Reset button
+                        // variable header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -175,7 +175,7 @@ fun PluginCustomizationColumn(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             
-                            // Reset Button - enabled only if the value has been modified
+                            // reset button
                             if (isModified) {
                                 TextButton(
                                     onClick = {
@@ -198,7 +198,7 @@ fun PluginCustomizationColumn(
                             }
                         }
                         
-                        // Variable Input Control
+                        // variable input control
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically

@@ -7,7 +7,7 @@ data class PluginModel(
     val description: String,
     val author: String,
     val version: String,
-    val size: String = "full", // "full" or "half"
+    val size: String = "full", // size type
     val permissions: List<String>,
     val networkWhitelist: List<String>,
     val minAppVersion: Int,
@@ -20,6 +20,6 @@ data class PluginModel(
 data class CustomizationOption(
     val type: String,
     val default: String,
-    val target: String?, // "css" or "js"
+    val target: String?, // css or js
     val value: String? = null
 )

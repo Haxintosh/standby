@@ -56,10 +56,10 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     
-    // Keep screen on for standby mode
+    // keep screen on
     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     
-    // Hide system bars for immersive feel
+    // hide system bars
     WindowCompat.setDecorFitsSystemWindows(window, false)
     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -117,7 +117,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             .sorted()
     }
 
-    // Coerce the saved/default refresh rate value to the lowest supported rate if invalid
+    // set refresh rate
     LaunchedEffect(supportedRefreshRates, lowRefreshRateValue) {
         if (supportedRefreshRates.isNotEmpty() && lowRefreshRateValue !in supportedRefreshRates) {
             viewModel.setLowRefreshRateValue(supportedRefreshRates.first())
@@ -144,27 +144,27 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         }
     }
 
-    // LaunchedEffect to handle display refresh rate changes based on idle time
+    // refresh rate adjustment
     LaunchedEffect(lastInteractionTime, lowRefreshRateEnabled, lowRefreshRateValue) {
         if (lowRefreshRateEnabled) {
-            // Restore default refresh rate immediately on user interaction
+            // restore default refresh rate
             setWindowRefreshRate(window, 0)
             
-            // Wait for 5 seconds of inactivity
+            // wait for inactivity
             delay(5000L)
             
-            // Find target mode for low refresh rate
+            // check low refresh rate mode
             val targetMode = display?.supportedModes?.firstOrNull { Math.round(it.refreshRate) == lowRefreshRateValue }
             if (targetMode != null) {
                 setWindowRefreshRate(window, targetMode.modeId)
             }
         } else {
-            // If feature is disabled, ensure screen is at default rate
+            // disable low refresh rate
             setWindowRefreshRate(window, 0)
         }
     }
     
-    // Launcher to pick custom HTML/CSS plugin
+    // plugin picker
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -223,7 +223,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             }
         }
 
-        // Unobtrusive Settings/Shield button to toggle OLED protection
+        // settings button
         AnimatedVisibility(
             visible = !hideControlsOnIdle || !isControlsInactive,
             enter = fadeIn(),
@@ -247,7 +247,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             }
         }
 
-        // Unobtrusive + button to add a new layout plugin
+        // layouts button
         AnimatedVisibility(
             visible = !hideControlsOnIdle || !isControlsInactive,
             enter = fadeIn(),
@@ -278,7 +278,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             null -> false
         }
 
-        // Unobtrusive Edit/Customization button on bottom left
+        // customization button
         AnimatedVisibility(
             visible = activePage != null && hasCustomization && (!hideControlsOnIdle || !isControlsInactive),
             enter = fadeIn(),
@@ -302,7 +302,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             }
         }
         
-        // indicator for PIN and server location
+        // status info
         AnimatedVisibility(
             visible = serverPort > 0 && (!hideControlsOnIdle || !isControlsInactive),
             enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
@@ -339,7 +339,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
 //                            .background(Color(0xFF8FFF9F), shape = CircleShape)
 //                    )
                     
-                    // addr
+                    // address
                     Text(
                         text = "Uploader: http://$serverIp:$serverPort",
                         color = Color(0xFFE6E1E5),

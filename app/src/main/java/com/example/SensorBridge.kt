@@ -19,7 +19,7 @@ class SensorBridge(
     fun getBatteryLevel(): Int {
         if (!allowedPermissions.contains("battery")) {
             Log.w("SensorBridge", "Blocked access to battery level: Permission not declared in manifest")
-            return 50 // Default fallback value
+            return 50 // fallback value
         }
         val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
             context.registerReceiver(null, ifilter)
@@ -28,7 +28,7 @@ class SensorBridge(
         val scale: Int = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
 
         return if (level == -1 || scale == -1) {
-            50 // Fallback
+            50 // fallback value
         } else {
             (level * 100 / scale.toFloat()).toInt()
         }

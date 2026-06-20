@@ -18,7 +18,7 @@ fun PluginWebView(
     plugin: PluginModel,
     modifier: Modifier = Modifier
 ) {
-    // Generate the customization JSON to pass to the JS bridge and injection script
+    // generate customization json
     val customizationsJson = generateCustomizationsJson(plugin.customizations)
     val currentCustomizations = rememberUpdatedState(customizationsJson)
 
@@ -43,7 +43,7 @@ fun PluginWebView(
                     setSupportZoom(false)
                 }
                 
-                // Set custom sensor bridge passing the allowed permissions and a dynamic customization provider
+                // set sensor bridge
                 addJavascriptInterface(
                     SensorBridge(context, plugin.permissions) { currentCustomizations.value },
                     "AndroidSensors"
@@ -65,12 +65,12 @@ fun PluginWebView(
                         val scheme = url.scheme
                         val host = url.host
                         
-                        // Allow local assets and UI serving (file:// or local.app)
+                        // allow local assets
                         if (scheme == "file" || host == "local.app") {
                             return null
                         }
                         
-                        // Check manifest network whitelist
+                        // check whitelist
                         val isAllowed = plugin.networkWhitelist.any { allowedDomain ->
                             host != null && (host == allowedDomain || host.endsWith(".$allowedDomain"))
                         }
@@ -85,7 +85,7 @@ fun PluginWebView(
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        // Run initial injection script
+                        // run injection script
                         val initScript = generateCustomizationInjectionScript(plugin.customizations)
                         view?.evaluateJavascript(initScript, null)
                     }

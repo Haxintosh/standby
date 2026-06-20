@@ -59,7 +59,7 @@ class PluginServer(
                     val address = addresses.nextElement()
                     if (address is Inet4Address && !address.isLoopbackAddress) {
                         val ip = address.hostAddress ?: continue
-                        // Return first typical LAN IP
+                        // return first lan ip
                         if (ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
                             return ip
                         }
@@ -86,7 +86,7 @@ class PluginServer(
             val uri = session.uri
             val method = session.method
 
-            // CORS headers helper
+            // cors headers helper
             fun createResponse(status: Response.IStatus, mimeType: String, message: String): Response {
                 val response = newFixedLengthResponse(status, mimeType, message)
                 response.addHeader("Access-Control-Allow-Origin", "*")
@@ -117,7 +117,7 @@ class PluginServer(
                     if (contentLength <= 0) {
                         createResponse(Response.Status.BAD_REQUEST, "text/plain; charset=utf-8", "Empty upload content.")
                     } else {
-                        // Create a temp file to store the raw bytes from the input stream
+                        // create temp file
                         val tempFile = java.io.File.createTempFile("upload_", ".tmp", context.cacheDir)
                         tempFile.outputStream().use { output ->
                             val input = session.inputStream

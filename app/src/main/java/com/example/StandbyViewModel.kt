@@ -65,10 +65,10 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val list = mutableListOf<PluginModel>()
             
-            // Add built-in clock plugin first
+            // add built-in clock
             list.add(DefaultPlugins.getBuiltInClockPlugin(sharedPreferences))
 
-            // Load registered plugins from disk
+            // load registered plugins
             val context = getApplication<Application>()
             val registry = PluginManager.loadRegistry(context)
             for (entry in registry) {

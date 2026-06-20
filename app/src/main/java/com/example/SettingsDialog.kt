@@ -57,7 +57,7 @@ fun SettingsDialog(
                     .safeDrawingPadding()
                     .padding(24.dp)
             ) {
-                // Header Row
+                // header row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -89,14 +89,14 @@ fun SettingsDialog(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Content Split in Two Columns for Horizontal Layout
+                // content columns
                 Row(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Left Column: OLED Burn-in Protection & Interface Settings
+                    // left column
                     Card(
                         modifier = Modifier
                             .weight(1f)
@@ -271,7 +271,7 @@ fun SettingsDialog(
                             
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             
-                            // Interface Settings Section
+                            // interface settings
                             Text(
                                 text = "Interface Settings",
                                 style = MaterialTheme.typography.titleMedium,
@@ -308,7 +308,7 @@ fun SettingsDialog(
                             
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             
-                            // Display Refresh Rate Section
+                            // display refresh rate
                             Text(
                                 text = "Display Refresh Rate",
                                 style = MaterialTheme.typography.titleMedium,
@@ -414,7 +414,7 @@ fun SettingsDialog(
                         }
                     }
                     
-                    // Right Column: HTTP Uploader Server
+                    // right column
                     Card(
                         modifier = Modifier
                             .weight(1f)

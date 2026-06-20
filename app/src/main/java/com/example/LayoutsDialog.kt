@@ -43,10 +43,10 @@ fun LayoutsDialog(
     onAddPageSlot: (String) -> Unit,
     onRemovePageSlot: (String) -> Unit,
     onMovePageSlot: (Int, Int) -> Unit, // callback to reorder slots
-    onUpdatePageSlotPlugin: (String, Boolean, String) -> Unit, // pageId, isLeft, newPluginLocalId
-    onUpdatePageSlotFull: (String, String) -> Unit, // pageId, newPluginLocalId
-    onUpdatePageSlotType: (String, String) -> Unit, // pageId, type
-    onDeletePlugin: (String) -> Unit, // delete plugin wrapper
+    onUpdatePageSlotPlugin: (String, Boolean, String) -> Unit, // page id, is left, new plugin id
+    onUpdatePageSlotFull: (String, String) -> Unit, // page id, new plugin id
+    onUpdatePageSlotType: (String, String) -> Unit, // page id, type
+    onDeletePlugin: (String) -> Unit, // delete plugin callback
     onImportPluginClick: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
@@ -62,7 +62,7 @@ fun LayoutsDialog(
                 .safeDrawingPadding()
                 .padding(24.dp)
         ) {
-            // Header Row: tabs inline next to + icon, with + import widget button on the right
+            // header row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -129,14 +129,14 @@ fun LayoutsDialog(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Tab Content
+            // tab content
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 if (selectedTabIndex == 0) {
-                    // TAB 1: Configure Screen Layouts
+                    // configure layouts tab
                     ConfigureLayoutsTab(
                         plugins = plugins,
                         standbyPages = standbyPages,
@@ -148,7 +148,7 @@ fun LayoutsDialog(
                         onUpdatePageSlotType = onUpdatePageSlotType
                     )
                 } else {
-                    // TAB 2: Widgets Importer & Installed list
+                    // widgets library tab
                     WidgetsLibraryTab(
                         plugins = plugins,
                         onDeletePlugin = onDeletePlugin
@@ -174,7 +174,7 @@ fun ConfigureLayoutsTab(
     val lazyListState = rememberLazyListState()
     var previousSize by remember { mutableStateOf(standbyPages.size) }
 
-    // Smooth scroll to the newly created page slot when a slot is added
+    // scroll to new page slot
     LaunchedEffect(standbyPages.size) {
         if (standbyPages.size > previousSize && standbyPages.isNotEmpty()) {
             lazyListState.animateScrollToItem(standbyPages.size - 1)
@@ -200,7 +200,7 @@ fun ConfigureLayoutsTab(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header with Compact Single Add Button
+            // header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,7 +226,7 @@ fun ConfigureLayoutsTab(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // LazyColumn supporting smooth animations
+            // slots list
             LazyColumn(
                 state = lazyListState,
                 modifier = Modifier
@@ -273,13 +273,13 @@ fun ConfigureLayoutsTab(
                                     modifier = Modifier.padding(10.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Inline Layout Row (Drag Icon + Title + Switch + Delete)
+                                    // slot item header
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        // Reorder Drag Handle (Calvin-LL)
+                                        // drag handle
                                         Icon(
                                             imageVector = Icons.Default.Menu,
                                             contentDescription = "Drag to reorder",
@@ -298,7 +298,7 @@ fun ConfigureLayoutsTab(
 
                                         Spacer(modifier = Modifier.weight(1f))
 
-                                        // Compact Type Switcher
+                                        // type switcher
                                         val isFull = page is StandbyPage.FullWidth
                                         Row(
                                             modifier = Modifier
@@ -330,7 +330,7 @@ fun ConfigureLayoutsTab(
                                             }
                                         }
 
-                                        // Delete Page Slot Button (Grey out if only one slot left)
+                                        // delete button
                                         val isDeleteEnabled = standbyPages.size > 1
                                         IconButton(
                                             onClick = { if (isDeleteEnabled) onRemovePageSlot(page.pageId) },
@@ -346,7 +346,7 @@ fun ConfigureLayoutsTab(
                                         }
                                     }
 
-                                    // Configuration selectors dropdown
+                                    // plugin dropdowns
                                     when (page) {
                                         is StandbyPage.FullWidth -> {
                                             val fullOptions = plugins.filter { it.isBuiltIn || it.size == "full" }
@@ -423,7 +423,7 @@ fun WidgetsLibraryTab(
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Scrollable List of Installed Widgets
+            // installed widgets list
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -481,7 +481,7 @@ fun WidgetsLibraryTab(
                                     )
                                 }
 
-                                // Suggestion Chip Badge
+                                // version chip
                                 SuggestionChip(
                                     onClick = {},
                                     label = {
@@ -493,7 +493,7 @@ fun WidgetsLibraryTab(
                                     modifier = Modifier.height(24.dp)
                                 )
 
-                                // Delete Widget Button (Only if it's NOT a built-in widget)
+                                // delete button
                                 if (!plugin.isBuiltIn) {
                                     IconButton(
                                         onClick = { onDeletePlugin(plugin.localId) },

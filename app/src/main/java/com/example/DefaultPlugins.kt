@@ -36,7 +36,7 @@ object DefaultPlugins {
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
-    /* Styling via CSS */
+    /* styling */
     * {
       box-sizing: border-box;
     }
@@ -82,7 +82,7 @@ object DefaultPlugins {
       letter-spacing: -0.05em;
       color: #E6E1E5;
       margin: 0;
-      /* Simulate the two-tone look by using a text gradient and customizable --clockColor variable */
+      /* two-tone clock styling */
       background: linear-gradient(to bottom, #E6E1E5 40%, var(--clockColor, #D0BCFF) 60%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -118,7 +118,7 @@ object DefaultPlugins {
   </style>
 </head>
 <body>
-  <!-- Dynamic Component Architecture (Vanilla implementation replacing React bundle) -->
+  <!-- clock container -->
   <div class="plugin-container" id="root">
     <div id="time">00:00</div>
     <div class="info" id="battery-text">Battery: --%</div>
@@ -126,14 +126,14 @@ object DefaultPlugins {
   </div>
 
   <script>
-    // Component lifecycle and data fetching
+    // data update
     function updateData() {
       const timeEl = document.getElementById('time');
       const batteryTextEl = document.getElementById('battery-text');
       const batteryFillEl = document.getElementById('battery-fill');
 
       if (window.AndroidSensors) {
-        // Securely access native sensor data
+        // get sensor data
         timeEl.innerText = window.AndroidSensors.getFormattedTime("HH:mm");
 
         const batteryLvl = window.AndroidSensors.getBatteryLevel();
@@ -151,9 +151,9 @@ object DefaultPlugins {
       }
     }
 
-    // React-like render loop
+    // update loop
     setInterval(updateData, 1000);
-    updateData(); // initial render
+    updateData(); // initial update
   </script>
 </body>
 </html>

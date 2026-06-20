@@ -91,7 +91,7 @@ object PluginManager {
             var entry = zip.nextEntry
             while (entry != null) {
                 val file = File(targetDir, entry.name)
-                // Prevent zip slip vulnerability (directory traversal)
+                // prevent directory traversal
                 if (!file.canonicalPath.startsWith(targetDir.canonicalPath)) {
                     throw SecurityException("Arbitrary file write hazard in zip entry: ${entry.name}")
                 }
@@ -236,13 +236,13 @@ object PluginManager {
             val folderName = "plugin_$localId"
             val targetDir = File(getPluginsDir(context), folderName)
 
-            // Move tempDir to targetDir
+            // move to target directory
             if (targetDir.exists()) {
                 targetDir.deleteRecursively()
             }
             tempDir.renameTo(targetDir)
 
-            // Register in plugins_registry.json
+            // register in registry
             val registry = loadRegistry(context).toMutableList()
             registry.add(
                 RegistryEntry(
@@ -273,10 +273,10 @@ object PluginManager {
         targetDir.mkdirs()
 
         try {
-            // Write plugin.html
+            // write html
             File(targetDir, "plugin.html").writeText(htmlContent)
 
-            // Write default manifest
+            // write default manifest
             val manifestObj = JSONObject().apply {
                 put("id", manifestId)
                 put("name", displayName)
@@ -291,10 +291,10 @@ object PluginManager {
             }
             File(targetDir, "plugin_manifest.json").writeText(manifestObj.toString(2))
 
-            // Write empty customization.json
+            // write empty customization
             File(targetDir, "customization.json").writeText("{}")
 
-            // Register
+            // register
             val registry = loadRegistry(context).toMutableList()
             registry.add(
                 RegistryEntry(
