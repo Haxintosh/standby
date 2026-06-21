@@ -112,5 +112,6 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
   implementation(libs.nanohttpd)
+  implementation(libs.androidx.webkit)
   implementation("sh.calvin.reorderable:reorderable:3.1.0")
 }

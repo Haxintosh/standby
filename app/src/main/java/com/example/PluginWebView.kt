@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.webkit.WebViewAssetLoader
 import java.io.ByteArrayInputStream
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -25,6 +26,14 @@ fun PluginWebView(
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
+            val assetLoader = WebViewAssetLoader.Builder()
+                .setDomain("appassets.androidplatform.net")
+                .addPathHandler(
+                    "/plugins/",
+                    WebViewAssetLoader.InternalStoragePathHandler(context, PluginManager.getPluginsDir(context))
+                )
+                .build()
+
             WebView(context).apply {
                 layoutParams = android.view.ViewGroup.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
@@ -34,9 +43,9 @@ fun PluginWebView(
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    allowFileAccess = true
-                    allowFileAccessFromFileURLs = true
-                    allowUniversalAccessFromFileURLs = true
+                    allowFileAccess = false
+                    allowFileAccessFromFileURLs = false
+                    allowUniversalAccessFromFileURLs = false
                     cacheMode = WebSettings.LOAD_DEFAULT
                     useWideViewPort = false
                     loadWithOverviewMode = false
@@ -65,8 +74,13 @@ fun PluginWebView(
                         val scheme = url.scheme
                         val host = url.host
                         
+                        val response = assetLoader.shouldInterceptRequest(url)
+                        if (response != null) {
+                            return response
+                        }
+                        
                         // allow local assets
-                        if (scheme == "file" || host == "local.app") {
+                        if (scheme == "file" || host == "local.app" || host == "appassets.androidplatform.net") {
                             return null
                         }
                         
@@ -91,13 +105,23 @@ fun PluginWebView(
                     }
                 }
                 
-                val baseUrl = if (plugin.directoryPath != null) "file://${plugin.directoryPath}/" else "https://local.app/"
+                val baseUrl = if (plugin.directoryPath != null) {
+                    val folderName = java.io.File(plugin.directoryPath).name
+                    "https://appassets.androidplatform.net/plugins/$folderName/"
+                } else {
+                    "https://local.app/"
+                }
                 loadDataWithBaseURL(baseUrl, plugin.htmlContent, "text/html", "UTF-8", null)
                 tag = Pair(plugin.htmlContent, customizationsJson)
             }
         },
         update = { webView ->
-            val baseUrl = if (plugin.directoryPath != null) "file://${plugin.directoryPath}/" else "https://local.app/"
+            val baseUrl = if (plugin.directoryPath != null) {
+                val folderName = java.io.File(plugin.directoryPath).name
+                "https://appassets.androidplatform.net/plugins/$folderName/"
+            } else {
+                "https://local.app/"
+            }
             val tagPair = webView.tag as? Pair<*, *>
             val currentContent = tagPair?.first as? String
             val currentCustomization = tagPair?.second as? String

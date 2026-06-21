@@ -1,0 +1,14 @@
+{
+  "variable 1": {
+    "type": "string, bool, etc",
+    "default": "yellow",
+    "target": "css",
+    "value": "green"
+  },
+  "variable 2": {
+    "type": "string, bool, etc",
+    "default": "true",
+    "target": "js",
+    "value": "false"
+  }
+}

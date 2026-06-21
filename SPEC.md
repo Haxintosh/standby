@@ -41,11 +41,15 @@ This file will be used to create the customization portion of the UI for the plu
 {
   "variable 1": {
     "type": "string, bool, etc",
-    "default": "yellow"
+    "default": "yellow",
+    "target": "css",
+    "value": "green"
   },
   "variable 2": {
     "type": "string, bool, etc",
-    "default": "true"
+    "default": "true",
+    "target": "js",
+    "value": "false"
   }
 }
 ```
