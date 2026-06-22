@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>honking</title>
+    <style>
+        body {
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            margin: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .mainContainer {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="mainContainer">
+        <img src="assets/goose_icon.png" alt="honk honk">
+    </div>
+<script>
+    // try to load the image using js
+    const img = new Image();
+    img.src = "assets/goose_icon.png";
+    // check for errors in loading of the image
+    img.onerror = function() {
+        console.log("image loading failed");
+        const container = document.querySelector(".mainContainer");
+        container.innerHTML = "image loading failed";
+    }
+</script>
+
+</body>
+</html>

@@ -136,7 +136,19 @@ object DefaultPlugins {
         // get sensor data
         timeEl.innerText = window.AndroidSensors.getFormattedTime("HH:mm");
 
-        const batteryLvl = window.AndroidSensors.getBatteryLevel();
+        let batteryLvl = 50;
+        try {
+          const batteryLevelRes = window.AndroidSensors.getBatteryLevel();
+          if (typeof batteryLevelRes === 'string') {
+            const batteryLevelObj = JSON.parse(batteryLevelRes);
+            batteryLvl = (batteryLevelObj && typeof batteryLevelObj.level !== 'undefined') ? batteryLevelObj.level : batteryLevelRes;
+          } else {
+            batteryLvl = batteryLevelRes;
+          }
+        } catch (e) {
+          console.error("Failed to parse battery level JSON", e);
+        }
+
         batteryTextEl.innerText = 'Battery ' + batteryLvl + '%';
         batteryFillEl.style.width = batteryLvl + '%';
 

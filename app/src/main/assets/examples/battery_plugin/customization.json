@@ -1,0 +1,42 @@
+{
+  "bg-color": {
+    "type": "color",
+    "default": "#000000",
+    "target": "css"
+  },
+  "text-main": {
+    "type": "color",
+    "default": "#ffffff",
+    "target": "css"
+  },
+  "text-muted": {
+    "type": "color",
+    "default": "#74797e",
+    "target": "css"
+  },
+  "color-charging": {
+    "type": "color",
+    "default": "#4ade80",
+    "target": "css"
+  },
+  "color-discharging": {
+    "type": "color",
+    "default": "#f87171",
+    "target": "css"
+  },
+  "grid-line": {
+    "type": "color",
+    "default": "#22252a",
+    "target": "css"
+  },
+  "MAX_HISTORICAL_POINTS": {
+    "type": "number",
+    "default": "30",
+    "target": "js"
+  },
+  "FIXED_MAX_CAPACITY": {
+    "type": "number",
+    "default": "4380",
+    "target": "js"
+  }
+}

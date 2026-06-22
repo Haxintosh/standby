@@ -1,0 +1,14 @@
+{
+  "clockColor": {
+    "type": "color",
+    "default": "#D0BCFF",
+    "target": "css",
+    "value": "#ff0000"
+  },
+  "showSeconds": {
+    "type": "boolean",
+    "default": "true",
+    "target": "js",
+    "value": "false"
+  }
+}

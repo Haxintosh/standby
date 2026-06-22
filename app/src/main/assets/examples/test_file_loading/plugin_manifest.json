@@ -1,7 +1,7 @@
 {
-  "id": "com.example.clock",
-  "name": "Analog Clock",
-  "description": "An analog clock plugin",
+  "id": "com.example.asset",
+  "name": "Asset loading",
+  "description": "honk honk",
   "author": "honk",
   "version": "0.0.1",
   "size": "half",
