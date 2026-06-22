@@ -447,6 +447,13 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 onDismissRequest = { showLayoutsDialog = false }
             )
         }
+
+        // telemetry overlay
+        TelemetryOverlay(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(32.dp)
+        )
     }
 }
 
