@@ -22,7 +22,8 @@ fun PluginWebView(
     // generate customization json
     val customizationsJson = generateCustomizationsJson(plugin.customizations)
     val currentCustomizations = rememberUpdatedState(customizationsJson)
-
+    val currentPlugin = rememberUpdatedState(plugin) // fix: stale plugin issues webview
+//    Log.d("PluginWebView", "render ${plugin.name}")
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
@@ -54,17 +55,17 @@ fun PluginWebView(
                 
                 // set sensor bridge
                 addJavascriptInterface(
-                    SensorBridge(context, plugin.permissions) { currentCustomizations.value },
+                    SensorBridge(context, { currentPlugin.value.permissions }) { currentCustomizations.value },
                     "AndroidSensors"
                 )
                 
                 webChromeClient = object : WebChromeClient() {
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
-                        Log.d("PluginWebView", "[${plugin.name}] " + (consoleMessage?.message() ?: ""))
+                        Log.d("PluginWebView", "[${currentPlugin.value.name}] " + (consoleMessage?.message() ?: ""))
                         return true
                     }
                 }
-                
+
                 webViewClient = object : WebViewClient() {
                     override fun shouldInterceptRequest(
                         view: WebView?,
@@ -85,7 +86,7 @@ fun PluginWebView(
                         }
                         
                         // check whitelist
-                        val isAllowed = plugin.networkWhitelist.any { allowedDomain ->
+                        val isAllowed = currentPlugin.value.networkWhitelist.any { allowedDomain ->
                             host != null && (host == allowedDomain || host.endsWith(".$allowedDomain"))
                         }
                         
@@ -100,22 +101,24 @@ fun PluginWebView(
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         // run injection script
-                        val initScript = generateCustomizationInjectionScript(plugin.customizations)
+                        val initScript = generateCustomizationInjectionScript(currentPlugin.value.customizations)
                         view?.evaluateJavascript(initScript, null)
                     }
                 }
                 
-                val baseUrl = if (plugin.directoryPath != null) {
-                    val folderName = java.io.File(plugin.directoryPath).name
+                val dirPath = currentPlugin.value.directoryPath
+                val baseUrl = if (dirPath != null) {
+                    val folderName = java.io.File(dirPath).name
                     "https://appassets.androidplatform.net/plugins/$folderName/"
                 } else {
                     "https://local.app/"
                 }
-                loadDataWithBaseURL(baseUrl, plugin.htmlContent, "text/html", "UTF-8", null)
-                tag = Pair(plugin.htmlContent, customizationsJson)
+                loadDataWithBaseURL(baseUrl, currentPlugin.value.htmlContent, "text/html", "UTF-8", null)
+                tag = Pair(currentPlugin.value.htmlContent, customizationsJson)
             }
         },
         update = { webView ->
+//            Log.d("PluginWebView", "update ${plugin.name}")
             val baseUrl = if (plugin.directoryPath != null) {
                 val folderName = java.io.File(plugin.directoryPath).name
                 "https://appassets.androidplatform.net/plugins/$folderName/"

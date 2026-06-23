@@ -18,9 +18,17 @@ import java.util.concurrent.TimeUnit
 
 class SensorBridge(
     private val context: Context,
-    private val allowedPermissions: List<String>,
+    private val allowedPermissionsProvider: () -> List<String>,
     private val customizationsProvider: () -> String
 ) {
+    constructor(
+        context: Context,
+        allowedPermissions: List<String>,
+        customizationsProvider: () -> String
+    ) : this(context, { allowedPermissions }, customizationsProvider)
+
+    private val allowedPermissions: List<String>
+        get() = allowedPermissionsProvider()
     companion object {
         @Volatile
         private var lastAmbientLight: Int = 10

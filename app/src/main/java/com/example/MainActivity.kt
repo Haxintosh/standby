@@ -65,6 +65,12 @@ class MainActivity : ComponentActivity() {
     insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     insetsController.hide(WindowInsetsCompat.Type.systemBars())
     
+    // disable split motion because of crashes when adb screen mirroring
+    // nvm this is more of an upstream aosp issue https://github.com/GrapheneOS/os-issue-tracker/issues/3781
+//    if (BuildConfig.DEBUG) {
+//        (window.decorView as? android.view.ViewGroup)?.isMotionEventSplittingEnabled = false
+//        // maybe: recurse through the view and disable it for all children
+//    }
     enableEdgeToEdge()
     setContent {
       MyApplicationTheme(darkTheme = true) {
