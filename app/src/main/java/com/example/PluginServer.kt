@@ -133,7 +133,15 @@ class PluginServer(
                         }
 
                         onPluginReceived(tempFile, contentType)
-                        createResponse(Response.Status.OK, "text/plain; charset=utf-8", "Success! Plugin updated.")
+                        
+                        val prefs = context.getSharedPreferences("standby_settings", Context.MODE_PRIVATE)
+                        val confirmEnabled = prefs.getBoolean("confirm_plugin_import", true)
+                        val responseMsg = if (confirmEnabled) {
+                            "Upload received!"
+                        } else {
+                            "Success! Plugin updated."
+                        }
+                        createResponse(Response.Status.OK, "text/plain; charset=utf-8", responseMsg)
                     }
                 } catch (e: Exception) {
                     Log.e("PluginServer", "Error handling upload", e)

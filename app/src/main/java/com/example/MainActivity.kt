@@ -92,6 +92,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val serverPort by viewModel.serverPort.collectAsState()
     val serverPin by viewModel.serverPin.collectAsState()
     val isServerRunning by viewModel.isServerRunning.collectAsState()
+    val pendingImport by viewModel.pendingImport.collectAsState()
+    val confirmImportEnabled by viewModel.confirmImportEnabled.collectAsState()
     
     val burnInProtectionEnabled by viewModel.burnInProtectionEnabled.collectAsState()
     val delayAfterInteraction by viewModel.delayAfterInteraction.collectAsState()
@@ -103,6 +105,12 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCustomizationDialog by remember { mutableStateOf(false) }
     var showLayoutsDialog by remember { mutableStateOf(false) }
+    var lastPendingImport by remember { mutableStateOf<PendingPluginImport?>(null) }
+    LaunchedEffect(pendingImport) {
+        if (pendingImport != null) {
+            lastPendingImport = pendingImport
+        }
+    }
     var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isInactive by remember { mutableStateOf(true) }
     var isControlsInactive by remember { mutableStateOf(false) }
@@ -408,6 +416,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 lowRefreshRateValue = lowRefreshRateValue,
                 onLowRefreshRateValueChange = { viewModel.setLowRefreshRateValue(it) },
                 supportedRefreshRates = supportedRefreshRates,
+                confirmImportEnabled = confirmImportEnabled,
+                onConfirmImportEnabledChange = { viewModel.setConfirmImportEnabled(it) },
                 onDismissRequest = { showSettingsDialog = false }
             )
         }
@@ -452,6 +462,21 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 onImportPluginClick = { filePickerLauncher.launch("*/*") },
                 onDismissRequest = { showLayoutsDialog = false }
             )
+        }
+
+        AnimatedVisibility(
+            visible = pendingImport != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            lastPendingImport?.let { pending ->
+                ImportConfirmationDialog(
+                    pendingImport = pending,
+                    onConfirm = { customName -> viewModel.confirmImport(customName) },
+                    onCancel = { viewModel.cancelImport() }
+                )
+            }
         }
     }
 }

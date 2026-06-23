@@ -468,12 +468,34 @@ fun WidgetsLibraryTab(
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = plugin.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = plugin.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        // last 4 characters for id when duplicate
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = plugin.localId.takeLast(4).uppercase(),
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            )
+                                        }
+                                    }
                                     Text(
                                         text = "Size: ${plugin.size.replaceFirstChar { it.uppercase() }} Width  •  By ${plugin.author}",
                                         style = MaterialTheme.typography.bodySmall,

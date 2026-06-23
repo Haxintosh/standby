@@ -45,6 +45,8 @@ fun SettingsDialog(
     lowRefreshRateValue: Int,
     onLowRefreshRateValueChange: (Int) -> Unit,
     supportedRefreshRates: List<Int>,
+    confirmImportEnabled: Boolean,
+    onConfirmImportEnabledChange: (Boolean) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     Surface(
@@ -577,6 +579,42 @@ fun SettingsDialog(
                                     }
                                 }
                             }
+                            
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Text(
+                                text = "Import Settings",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Confirm Plugin Import",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Prompt details before adding new widgets",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = confirmImportEnabled,
+                                    onCheckedChange = onConfirmImportEnabledChange,
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -612,6 +650,8 @@ fun SettingsDialogPreview() {
         lowRefreshRateValue = 60,
         onLowRefreshRateValueChange = {},
         supportedRefreshRates = listOf(60, 90, 120),
+        confirmImportEnabled = true,
+        onConfirmImportEnabledChange = {},
         onDismissRequest = {}
     )
 }

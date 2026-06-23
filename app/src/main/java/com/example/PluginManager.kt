@@ -214,9 +214,9 @@ object PluginManager {
         }
     }
 
-    fun importZipPlugin(context: Context, zipStream: InputStream): PluginModel {
+    fun prepareZipPluginImport(context: Context, zipStream: InputStream, originalFileName: String): PendingPluginImport {
         val timestamp = System.currentTimeMillis()
-        val tempDir = File(context.cacheDir, "temp_plugin_$timestamp")
+        val tempDir = File(context.cacheDir, "temp_plugin_pending_$timestamp")
         tempDir.mkdirs()
 
         try {
@@ -231,24 +231,138 @@ object PluginManager {
                 throw IllegalArgumentException("Blank plugin id in manifest")
             }
             val name = manifestJson.optString("name", "Imported Plugin")
+            val description = manifestJson.optString("description", "")
+            val author = manifestJson.optString("author", "Unknown")
+            val version = manifestJson.optString("version", "1.0.0")
+            val size = manifestJson.optString("size", "full")
+
+            val permissions = mutableListOf<String>()
+            val permissionsArray = manifestJson.optJSONArray("permissions")
+            if (permissionsArray != null) {
+                for (i in 0 until permissionsArray.length()) {
+                    permissions.add(permissionsArray.getString(i))
+                }
+            }
+
+            val networkWhitelist = mutableListOf<String>()
+            val whitelistArray = manifestJson.optJSONArray("network_whitelist")
+            if (whitelistArray != null) {
+                for (i in 0 until whitelistArray.length()) {
+                    networkWhitelist.add(whitelistArray.getString(i))
+                }
+            }
+
+            val minAppVersion = manifestJson.optInt("min_app_version", 1)
+
+            return PendingPluginImport(
+                name = name,
+                description = description,
+                author = author,
+                version = version,
+                size = size,
+                permissions = permissions,
+                networkWhitelist = networkWhitelist,
+                minAppVersion = minAppVersion,
+                isZip = true,
+                tempDir = tempDir,
+                originalFileName = originalFileName
+            )
+        } catch (e: Exception) {
+            if (tempDir.exists()) {
+                tempDir.deleteRecursively()
+            }
+            throw e
+        }
+    }
+
+    // will be deprecated in the future
+    fun prepareHtmlPluginImport(context: Context, htmlContent: String, displayName: String): PendingPluginImport {
+        val timestamp = System.currentTimeMillis()
+        val tempDir = File(context.cacheDir, "temp_plugin_pending_$timestamp")
+        tempDir.mkdirs()
+
+        try {
+            // write html
+            File(tempDir, "plugin.html").writeText(htmlContent)
+
+            return PendingPluginImport(
+                name = displayName,
+                description = "Imported HTML widget file",
+                author = "Local Import",
+                version = "1.0.0",
+                size = "full",
+                permissions = listOf("battery"),
+                networkWhitelist = emptyList(),
+                minAppVersion = 1,
+                isZip = false,
+                tempDir = tempDir,
+                originalFileName = displayName
+            )
+        } catch (e: Exception) {
+            if (tempDir.exists()) {
+                tempDir.deleteRecursively()
+            }
+            throw e
+        }
+    }
+
+    fun completePendingImport(context: Context, pending: PendingPluginImport, customName: String): PluginModel {
+        val timestamp = System.currentTimeMillis()
+        val tempDir = pending.tempDir
+        
+        try {
+            val manifestFile = File(tempDir, "plugin_manifest.json")
+            val manifestId = if (pending.isZip) {
+                val manifestJson = JSONObject(manifestFile.readText())
+                if (customName != pending.name) {
+                    manifestJson.put("name", customName)
+                    manifestFile.writeText(manifestJson.toString(2))
+                }
+                manifestJson.getString("id")
+            } else {
+                val mId = "imported.html." + pending.originalFileName.replace(Regex("[^a-zA-Z0-9]"), "").lowercase()
+                val manifestObj = JSONObject().apply {
+                    put("id", mId)
+                    put("name", customName)
+                    put("description", pending.description)
+                    put("author", pending.author)
+                    put("version", pending.version)
+                    put("permissions", JSONArray().apply {
+                        pending.permissions.forEach { put(it) }
+                    })
+                    put("network_whitelist", JSONArray())
+                    put("min_app_version", pending.minAppVersion)
+                }
+                manifestFile.writeText(manifestObj.toString(2))
+                
+                // write empty customization.json
+                File(tempDir, "customization.json").writeText("{}")
+                mId
+            }
+
+            if (manifestId.isBlank()) {
+                throw IllegalArgumentException("Blank plugin id in manifest")
+            }
 
             val localId = "${manifestId}_$timestamp"
             val folderName = "plugin_$localId"
             val targetDir = File(getPluginsDir(context), folderName)
 
-            // move to target directory
             if (targetDir.exists()) {
                 targetDir.deleteRecursively()
             }
-            tempDir.renameTo(targetDir)
+            
+            if (!tempDir.renameTo(targetDir)) {
+                tempDir.copyRecursively(targetDir, overwrite = true)
+                tempDir.deleteRecursively()
+            }
 
-            // register in registry
             val registry = loadRegistry(context).toMutableList()
             registry.add(
                 RegistryEntry(
                     localId = localId,
                     manifestId = manifestId,
-                    name = name,
+                    name = customName,
                     folderName = folderName,
                     installTimestamp = timestamp
                 )
@@ -257,62 +371,22 @@ object PluginManager {
 
             return loadPluginDirectory(context, folderName, localId)
                 ?: throw IllegalStateException("Failed to load imported plugin directory")
-        } finally {
+        } catch (e: Exception) {
             if (tempDir.exists()) {
                 tempDir.deleteRecursively()
             }
+            throw e
         }
     }
 
+    fun importZipPlugin(context: Context, zipStream: InputStream): PluginModel {
+        val pending = prepareZipPluginImport(context, zipStream, "imported_plugin.zip")
+        return completePendingImport(context, pending, pending.name)
+    }
+
     fun importHtmlPlugin(context: Context, htmlContent: String, displayName: String): PluginModel {
-        val timestamp = System.currentTimeMillis()
-        val manifestId = "imported.html." + displayName.replace(Regex("[^a-zA-Z0-9]"), "").lowercase()
-        val localId = "${manifestId}_$timestamp"
-        val folderName = "plugin_$localId"
-        val targetDir = File(getPluginsDir(context), folderName)
-        targetDir.mkdirs()
-
-        try {
-            // write html
-            File(targetDir, "plugin.html").writeText(htmlContent)
-
-            // write default manifest
-            val manifestObj = JSONObject().apply {
-                put("id", manifestId)
-                put("name", displayName)
-                put("description", "Imported HTML widget file")
-                put("author", "Local Import")
-                put("version", "1.0.0")
-                put("permissions", JSONArray().apply {
-                    put("battery")
-                })
-                put("network_whitelist", JSONArray())
-                put("min_app_version", 1)
-            }
-            File(targetDir, "plugin_manifest.json").writeText(manifestObj.toString(2))
-
-            // write empty customization
-            File(targetDir, "customization.json").writeText("{}")
-
-            // register
-            val registry = loadRegistry(context).toMutableList()
-            registry.add(
-                RegistryEntry(
-                    localId = localId,
-                    manifestId = manifestId,
-                    name = displayName,
-                    folderName = folderName,
-                    installTimestamp = timestamp
-                )
-            )
-            saveRegistry(context, registry)
-
-            return loadPluginDirectory(context, folderName, localId)
-                ?: throw IllegalStateException("Failed to load imported HTML plugin")
-        } catch (e: Exception) {
-            targetDir.deleteRecursively()
-            throw e
-        }
+        val pending = prepareHtmlPluginImport(context, htmlContent, displayName)
+        return completePendingImport(context, pending, displayName)
     }
 
     private fun getLayoutFile(context: Context): File {

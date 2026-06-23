@@ -54,6 +54,17 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     private val _serverIp = MutableStateFlow("")
     val serverIp: StateFlow<String> = _serverIp.asStateFlow()
 
+    private val _pendingImport = MutableStateFlow<PendingPluginImport?>(null)
+    val pendingImport: StateFlow<PendingPluginImport?> = _pendingImport.asStateFlow()
+
+    private val _confirmImportEnabled = MutableStateFlow(sharedPreferences.getBoolean("confirm_plugin_import", true))
+    val confirmImportEnabled: StateFlow<Boolean> = _confirmImportEnabled.asStateFlow()
+
+    fun setConfirmImportEnabled(enabled: Boolean) {
+        _confirmImportEnabled.value = enabled
+        sharedPreferences.edit().putBoolean("confirm_plugin_import", enabled).apply()
+    }
+
     init {
         loadPlugins()
         if (sharedPreferences.getBoolean("server_enabled", true)) {
@@ -392,15 +403,20 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
                         file.copyTo(cachedFile, overwrite = true)
                         
                         try {
-                            if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
+                            val pending = if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
                                 cachedFile.inputStream().use { input ->
-                                    PluginManager.importZipPlugin(context, input)
+                                    PluginManager.prepareZipPluginImport(context, input, file.name)
                                 }
                             } else {
                                 val htmlContent = cachedFile.readText()
-                                PluginManager.importHtmlPlugin(context, htmlContent, "Uploaded Plugin")
+                                PluginManager.prepareHtmlPluginImport(context, htmlContent, "Uploaded Plugin")
                             }
-                            loadPlugins()
+                            if (_confirmImportEnabled.value) {
+                                _pendingImport.value = pending
+                            } else {
+                                PluginManager.completePendingImport(context, pending, pending.name)
+                                loadPlugins()
+                            }
                         } finally {
                             cachedFile.delete()
                         }
@@ -435,16 +451,51 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val fileName = PluginManager.getFileName(context, uri) ?: "imported_plugin.zip"
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    if (fileName.endsWith(".zip")) {
-                        PluginManager.importZipPlugin(context, inputStream)
+                    val pending = if (fileName.endsWith(".zip")) {
+                        PluginManager.prepareZipPluginImport(context, inputStream, fileName)
                     } else {
                         val htmlContent = inputStream.bufferedReader().readText()
-                        PluginManager.importHtmlPlugin(context, htmlContent, fileName)
+                        PluginManager.prepareHtmlPluginImport(context, htmlContent, fileName)
                     }
-                    loadPlugins()
+                    if (_confirmImportEnabled.value) {
+                        _pendingImport.value = pending
+                    } else {
+                        PluginManager.completePendingImport(context, pending, pending.name)
+                        loadPlugins()
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun confirmImport(customName: String) {
+        val pending = _pendingImport.value ?: return
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>()
+                PluginManager.completePendingImport(context, pending, customName)
+                loadPlugins()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _pendingImport.value = null
+            }
+        }
+    }
+
+    fun cancelImport() {
+        val pending = _pendingImport.value ?: return
+        viewModelScope.launch {
+            try {
+                if (pending.tempDir.exists()) {
+                    pending.tempDir.deleteRecursively()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _pendingImport.value = null
             }
         }
     }
