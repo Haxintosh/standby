@@ -17,9 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import java.io.File
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ImportConfirmationDialog(
@@ -27,68 +26,67 @@ fun ImportConfirmationDialog(
     onConfirm: (String) -> Unit,
     onCancel: () -> Unit
 ) {
-    Dialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            ImportConfirmationDialogContent(
-                pendingImport = pendingImport,
-                onConfirm = onConfirm,
-                onCancel = onCancel
-            )
-        }
-    }
-}
+        var customName by remember(pendingImport) { mutableStateOf(pendingImport.name) }
+        val leftScrollState = rememberScrollState()
+        val rightScrollState = rememberScrollState()
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
-fun ImportConfirmationDialogContent(
-    pendingImport: PendingPluginImport,
-    onConfirm: (String) -> Unit,
-    onCancel: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var customName by remember(pendingImport) { mutableStateOf(pendingImport.name) }
-    val leftScrollState = rememberScrollState()
-    val rightScrollState = rememberScrollState()
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth(0.9f)
-            .fillMaxHeight(0.9f),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
-    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .safeDrawingPadding()
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // header
+            // header with inline buttons
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-                Text(
-                    text = "Confirm Plugin Import",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Text(
+                        text = "Confirm Plugin Import",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onCancel,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            if (customName.isNotBlank()) {
+                                onConfirm(customName)
+                            }
+                        },
+                        enabled = customName.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Import")
+                    }
+                }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -315,32 +313,6 @@ fun ImportConfirmationDialogContent(
                     }
                 }
             }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            // buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-            ) {
-                OutlinedButton(
-                    onClick = onCancel,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Cancel")
-                }
-                Button(
-                    onClick = {
-                        if (customName.isNotBlank()) {
-                            onConfirm(customName)
-                        }
-                    },
-                    enabled = customName.isNotBlank(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Import")
-                }
-            }
         }
     }
 }
@@ -369,27 +341,22 @@ fun DetailRow(label: String, value: String) {
 @Composable
 fun PreviewImportConfirmationDialog() {
     MaterialTheme {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            ImportConfirmationDialogContent(
-                pendingImport = PendingPluginImport(
-                    name = "veryveryeverylongnametotestthingsouthelloworldisthislongenough?probablynot123.d;,lmfr",
-                    description = "what did the goose say? nothing, she honked, get ur head of out the gutter animals don't talk in this realm dominated by the rules of physics, well actually why don't they talk, why are humans the only animal capable of talking? is this description long enough to test things out?",
-                    author = "honk honk honk honk honk honk honk honk",
-                    version = "2.1.4",
-                    size = "half",
-                    permissions = listOf("battery", "sensor"),
-                    networkWhitelist = listOf("api.github.com", "metrics.honking.goose"),
-                    minAppVersion = 1000,
-                    isZip = true,
-                    tempDir = File("/mock/path"),
-                    originalFileName = "widget_plugin_v67.zip"
-                ),
-                onConfirm = {},
-                onCancel = {}
-            )
-        }
+        ImportConfirmationDialog(
+            pendingImport = PendingPluginImport(
+                name = "veryveryeverylongnametotestthingsouthelloworldisthislongenough?probablynot123.d;,lmfr",
+                description = "what did the goose say? nothing, she honked, get ur head of out the gutter animals don't talk in this realm dominated by the rules of physics, well actually why don't they talk, why are humans the only animal capable of talking? is this description long enough to test things out?",
+                author = "honk honk honk honk honk honk honk honk",
+                version = "2.1.4",
+                size = "half",
+                permissions = listOf("battery", "sensor"),
+                networkWhitelist = listOf("api.github.com", "metrics.honking.goose"),
+                minAppVersion = 1000,
+                isZip = true,
+                tempDir = File("/mock/path"),
+                originalFileName = "widget_plugin_v67.zip"
+            ),
+            onConfirm = {},
+            onCancel = {}
+        )
     }
 }

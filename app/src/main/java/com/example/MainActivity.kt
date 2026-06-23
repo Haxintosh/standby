@@ -105,6 +105,12 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCustomizationDialog by remember { mutableStateOf(false) }
     var showLayoutsDialog by remember { mutableStateOf(false) }
+    var lastPendingImport by remember { mutableStateOf<PendingPluginImport?>(null) }
+    LaunchedEffect(pendingImport) {
+        if (pendingImport != null) {
+            lastPendingImport = pendingImport
+        }
+    }
     var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var isInactive by remember { mutableStateOf(true) }
     var isControlsInactive by remember { mutableStateOf(false) }
@@ -458,12 +464,19 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             )
         }
 
-        pendingImport?.let { pending ->
-            ImportConfirmationDialog(
-                pendingImport = pending,
-                onConfirm = { customName -> viewModel.confirmImport(customName) },
-                onCancel = { viewModel.cancelImport() }
-            )
+        AnimatedVisibility(
+            visible = pendingImport != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            lastPendingImport?.let { pending ->
+                ImportConfirmationDialog(
+                    pendingImport = pending,
+                    onConfirm = { customName -> viewModel.confirmImport(customName) },
+                    onCancel = { viewModel.cancelImport() }
+                )
+            }
         }
     }
 }
