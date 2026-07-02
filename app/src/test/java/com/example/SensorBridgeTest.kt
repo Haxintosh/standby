@@ -49,10 +49,11 @@ class SensorBridgeTest {
         assertTrue(alarmObj.isNull("creatorPackage"))
         assertEquals("", alarmObj.getString("formattedTime"))
 
-        val weatherObj = JSONObject(bridgeNoPerms.getWeatherData())
+        val providerNoPerms = ProviderBridge(context, emptyList())
+        val weatherObj = JSONObject(providerNoPerms.getWeatherData())
         assertEquals("{}", weatherObj.toString())
 
-        val currentWeatherObj = JSONObject(bridgeNoPerms.getCurrentWeather())
+        val currentWeatherObj = JSONObject(providerNoPerms.getCurrentWeather())
         assertEquals("{}", currentWeatherObj.toString())
     }
 
@@ -132,15 +133,15 @@ class SensorBridgeTest {
     @Test
     fun testWeatherPermissionAllowed() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val bridgeWithPerms = SensorBridge(
+        val providerWithPerms = ProviderBridge(
             context,
             listOf("weather")
-        ) { "{}" }
+        )
 
-        val weatherObj = JSONObject(bridgeWithPerms.getWeatherData())
+        val weatherObj = JSONObject(providerWithPerms.getWeatherData())
         assertEquals("{}", weatherObj.toString())
 
-        val currentWeatherObj = JSONObject(bridgeWithPerms.getCurrentWeather())
+        val currentWeatherObj = JSONObject(providerWithPerms.getCurrentWeather())
         assertEquals("{}", currentWeatherObj.toString())
     }
 
@@ -171,12 +172,12 @@ class SensorBridgeTest {
         val mockFile = java.io.File(cacheDir, "03d@4x.png")
         mockFile.writeBytes("mock_image_bytes".toByteArray())
 
-        val bridgeWithPerms = SensorBridge(
+        val providerWithPerms = ProviderBridge(
             context,
             listOf("weather")
-        ) { "{}" }
+        )
 
-        val currentWeatherObj = JSONObject(bridgeWithPerms.getCurrentWeather())
+        val currentWeatherObj = JSONObject(providerWithPerms.getCurrentWeather())
         assertEquals("Berlin", currentWeatherObj.getString("city"))
         assertEquals(22.5, currentWeatherObj.getDouble("temp"), 0.01)
         assertEquals(3, currentWeatherObj.getInt("weatherCode"))

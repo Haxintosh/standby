@@ -135,6 +135,14 @@ object PluginManager {
                 }
             }
 
+            val providers = mutableListOf<String>()
+            val providersArray = manifestJson.optJSONArray("providers")
+            if (providersArray != null) {
+                for (i in 0 until providersArray.length()) {
+                    providers.add(providersArray.getString(i))
+                }
+            }
+
             val networkWhitelist = mutableListOf<String>()
             val whitelistArray = manifestJson.optJSONArray("network_whitelist")
             if (whitelistArray != null) {
@@ -175,6 +183,7 @@ object PluginManager {
                 version = version,
                 size = size,
                 permissions = permissions,
+                providers = providers,
                 networkWhitelist = networkWhitelist,
                 minAppVersion = minAppVersion,
                 directoryPath = pluginDir.absolutePath,
@@ -244,6 +253,14 @@ object PluginManager {
                 }
             }
 
+            val providers = mutableListOf<String>()
+            val providersArray = manifestJson.optJSONArray("providers")
+            if (providersArray != null) {
+                for (i in 0 until providersArray.length()) {
+                    providers.add(providersArray.getString(i))
+                }
+            }
+
             val networkWhitelist = mutableListOf<String>()
             val whitelistArray = manifestJson.optJSONArray("network_whitelist")
             if (whitelistArray != null) {
@@ -261,6 +278,7 @@ object PluginManager {
                 version = version,
                 size = size,
                 permissions = permissions,
+                providers = providers,
                 networkWhitelist = networkWhitelist,
                 minAppVersion = minAppVersion,
                 isZip = true,
@@ -292,6 +310,7 @@ object PluginManager {
                 version = "1.0.0",
                 size = "full",
                 permissions = listOf("battery"),
+                providers = emptyList(),
                 networkWhitelist = emptyList(),
                 minAppVersion = 1,
                 isZip = false,
@@ -329,6 +348,9 @@ object PluginManager {
                     put("version", pending.version)
                     put("permissions", JSONArray().apply {
                         pending.permissions.forEach { put(it) }
+                    })
+                    put("providers", JSONArray().apply {
+                        pending.providers.forEach { put(it) }
                     })
                     put("network_whitelist", JSONArray())
                     put("min_app_version", pending.minAppVersion)

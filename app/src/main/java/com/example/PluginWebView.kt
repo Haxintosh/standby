@@ -58,6 +58,10 @@ fun PluginWebView(
                     SensorBridge(context, { currentPlugin.value.permissions }) { currentCustomizations.value },
                     "AndroidSensors"
                 )
+                addJavascriptInterface(
+                    ProviderBridge(context, { currentPlugin.value.providers }),
+                    "AndroidProviders"
+                )
                 
                 webChromeClient = object : WebChromeClient() {
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {

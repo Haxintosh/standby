@@ -9,6 +9,7 @@ data class PluginModel(
     val version: String,
     val size: String = "full", // size type
     val permissions: List<String>,
+    val providers: List<String> = emptyList(),
     val networkWhitelist: List<String>,
     val minAppVersion: Int,
     val directoryPath: String?, // null if built-in
@@ -31,6 +32,7 @@ data class PendingPluginImport(
     val version: String,
     val size: String,
     val permissions: List<String>,
+    val providers: List<String> = emptyList(),
     val networkWhitelist: List<String>,
     val minAppVersion: Int,
     val isZip: Boolean,
