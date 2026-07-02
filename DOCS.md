@@ -10,7 +10,7 @@ Every plugin is packaged as a standard `.zip` file containing the following stru
 
 ```text
 plugin.zip/
-├── plugin_manifest.json     # Required: Metadata, permissions, and sizing
+├── plugin_manifest.json     # Required: Metadata, permissions, etc
 ├── plugin.html              # Required: Main HTML entry point
 ├── customization.json       # Optional: Configures user-customizable options
 └── assets/                  # Optional: Images, fonts, styles, or scripts

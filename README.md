@@ -6,7 +6,7 @@
 
 **Standby** is a modular, open-source Android application similar to the iOS-style StandBy mode interface.
 
-Unlike similar standby mode apps on the Play Store, Standby is 100% open-source, no ads, and does not lock core features (such as layouts or settings) behind paywalls.  
+Unlike similar standby mode apps on the Play Store, Standby is 100% open-source, has no ads, and does not lock core features (such as layouts or settings) behind paywalls.  
 
 Most importantly, it is fully extensible instead of forcing you to choose from a fixed set of built-in templates, it allows you to build, customize, or modify your own widgets using simple HTML, CSS, and JavaScript.
 
@@ -30,14 +30,19 @@ Adding your own custom widget or changing an existing one is straightforward sin
 
 ### 1. The Structure
 Each widget is stored or imported as a `.zip` archive containing:
-1. `plugin_manifest.json` — Declares permissions, provider requests, widget size (`half` or `full`), and external network domains.
-2. `plugin.html` — The actual UI structure, styles, and logic.
-3. `customization.json` — Defines styling variables (e.g. colors, numbers) that users can edit in the app UI.
-4. `assets/` — Subdirectory for fonts, audios, and images.
-
+```text
+plugin.zip/
+├── plugin_manifest.json     # Metadata, permissions, and sizing
+├── plugin.html              # Main HTML entry point
+├── customization.json       # Configures user-customizable options
+└── assets/                  # Images, fonts, styles, or scripts
+    ├── sunset.png
+    ├── style.css
+    └── font.ttf
+```
 For details on manifest formats and the JavaScript bridges, see [DOCS.md](DOCS.md). 
-### 2. Live Local Iteration
-To build and debug widgets quickly without rebuilding the Android project, Standby includes a built-in local HTTP server. When enabled, it provides a simple web uploader portal over your local Wi-Fi. You can upload your widget ZIPs directly from your computer, input the PIN displayed on the app, and see your widgets load instantly on the device.
+### 2. Plugin Upload Server
+To build and debug widgets quickly, Standby includes a built-in local HTTP server. When enabled, it provides a simple web uploader over your local Wi-Fi. You can upload your widget ZIPs directly from your computer, input the PIN displayed on the app, and see your widgets load instantly on the device.
 
 There are pre-configured example widgets under [app/src/main/assets/examples/](app/src/main/assets/examples/) to use as a starting template.
 
@@ -54,31 +59,24 @@ Here is a visual overview of how the plugins render and interact with the Standb
   ![Full-screen widget layout](img/fullscreen_plugin.png)
 
 ### Example Widgets
-* **Battery Stats Dashboard**: Queries local metrics via `window.AndroidSensors` to draw live charge current and voltage charts.
+* **Battery Stats**: Queries local metrics via `window.AndroidSensors` to draw live charge current and voltage charts.
   ![Battery stats monitor widget](img/battery_stats.png)
-* **Clock & Weather Info**: Integration with the `window.AndroidProviders` local weather cache.
+* **Weather Info**: Integration with the `window.AndroidProviders` local weather cache.
   ![Weather and clock widget](img/clock_weather.png)
-* **Custom Typography & Colors**: Clocks showcasing dynamic styling using CSS variables.
+* **Other clocks**:
   ![Customizable color clock](img/colorful_clock.png)
   ![Elongated typography clock](img/elongated_clock.png)
 
 ### Controls & Screen Safety
-* **In-App Customizations**: Edit colors, thresholds, or switches declared in `customization.json` using native Android color pickers and sliders.
+* **In-App Customizations**: Edit colors, thresholds, or switches declared in `customization.json`.
   ![In-app plugin customization controls](img/plugin_customization.png)
-* **Active OLED Burn-In Mask**: The pixel-shifting checkerboard overlay pattern that cycles subpixels to avoid screen retention.
+* **Active OLED Burn-In Mask**: The overlay pattern that cycles pixels to avoid screen retention.
   ![Shifting subpixel protection pattern overlay](img/oled_burn_example.png)
 
 ---
 
-## Building the App
-
-To compile the Android app from source:
-
-1. Configure your local Java environment. For instance, in PowerShell:
-   ```powershell
-   $env:JAVA_HOME = "C:\Users\haxin\AppData\Local\Programs\Android Studio\jbr"
-   ```
-2. Run the Gradle build task:
+## Building
+1. Run the Gradle build task:
    ```bash
    ./gradlew assembleDebug
    ```
