@@ -102,6 +102,23 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val lowRefreshRateEnabled by viewModel.lowRefreshRateEnabled.collectAsState()
     val lowRefreshRateValue by viewModel.lowRefreshRateValue.collectAsState()
 
+    val weatherLat by viewModel.weatherLat.collectAsState()
+    val weatherLon by viewModel.weatherLon.collectAsState()
+    val weatherCity by viewModel.weatherCity.collectAsState()
+    val weatherUseGps by viewModel.weatherUseGps.collectAsState()
+    val weatherLastUpdate by viewModel.weatherLastUpdate.collectAsState()
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.setWeatherUseGps(true)
+            } else {
+                viewModel.setWeatherUseGps(false)
+            }
+        }
+    )
+
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCustomizationDialog by remember { mutableStateOf(false) }
     var showLayoutsDialog by remember { mutableStateOf(false) }
@@ -418,6 +435,30 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 supportedRefreshRates = supportedRefreshRates,
                 confirmImportEnabled = confirmImportEnabled,
                 onConfirmImportEnabledChange = { viewModel.setConfirmImportEnabled(it) },
+                weatherLat = weatherLat,
+                weatherLon = weatherLon,
+                weatherCity = weatherCity,
+                weatherUseGps = weatherUseGps,
+                weatherLastUpdate = weatherLastUpdate,
+                onWeatherLocationChange = { lat, lon, city -> viewModel.setWeatherLocation(lat, lon, city) },
+                onWeatherUseGpsChange = { enabled ->
+                    if (enabled) {
+                        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        
+                        if (hasPermission) {
+                            viewModel.setWeatherUseGps(true)
+                        } else {
+                            locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                        }
+                    } else {
+                        viewModel.setWeatherUseGps(false)
+                    }
+                },
+                onWeatherRefresh = { viewModel.triggerWeatherRefresh() },
+                onSearchLocations = { viewModel.searchLocations(it) },
                 onDismissRequest = { showSettingsDialog = false }
             )
         }

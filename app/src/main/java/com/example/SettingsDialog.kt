@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+
 @Composable
 fun SettingsDialog(
     burnInProtectionEnabled: Boolean,
@@ -47,6 +49,15 @@ fun SettingsDialog(
     supportedRefreshRates: List<Int>,
     confirmImportEnabled: Boolean,
     onConfirmImportEnabledChange: (Boolean) -> Unit,
+    weatherLat: String,
+    weatherLon: String,
+    weatherCity: String,
+    weatherUseGps: Boolean,
+    weatherLastUpdate: Long,
+    onWeatherLocationChange: (String, String, String) -> Unit,
+    onWeatherUseGpsChange: (Boolean) -> Unit,
+    onWeatherRefresh: () -> Unit,
+    onSearchLocations: suspend (String) -> List<ProviderManager.GeocodingResult>,
     onDismissRequest: () -> Unit
 ) {
     Surface(
@@ -615,6 +626,162 @@ fun SettingsDialog(
                                     )
                                 )
                             }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Text(
+                                text = "Weather Settings",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Auto-detect Location (GPS)",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Uses GPS to determine local weather",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = weatherUseGps,
+                                    onCheckedChange = onWeatherUseGpsChange,
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                )
+                            }
+
+                            if (!weatherUseGps) {
+                                var searchQuery by remember { mutableStateOf("") }
+                                var searchResults by remember { mutableStateOf<List<ProviderManager.GeocodingResult>>(emptyList()) }
+                                val coroutineScope = rememberCoroutineScope()
+
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = searchQuery,
+                                        onValueChange = { newValue ->
+                                            searchQuery = newValue
+                                            if (newValue.length >= 2) {
+                                                coroutineScope.launch {
+                                                    searchResults = onSearchLocations(newValue)
+                                                }
+                                            } else {
+                                                searchResults = emptyList()
+                                            }
+                                        },
+                                        label = { Text("Search City/Region") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+
+                                    if (searchResults.isNotEmpty()) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                                                .padding(4.dp)
+                                        ) {
+                                            searchResults.forEach { result ->
+                                                TextButton(
+                                                    onClick = {
+                                                        val displayName = "${result.name}${if (result.admin1 != null) ", ${result.admin1}" else ""}${if (result.country != null) ", ${result.country}" else ""}"
+                                                        onWeatherLocationChange(result.latitude.toString(), result.longitude.toString(), displayName)
+                                                        searchQuery = ""
+                                                        searchResults = emptyList()
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.Start
+                                                    ) {
+                                                        Text(
+                                                            text = "${result.name}${if (result.admin1 != null) ", ${result.admin1}" else ""}${if (result.country != null) ", ${result.country}" else ""}",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Active Location",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = weatherCity,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Lat: $weatherLat, Lon: $weatherLon",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Button(
+                                        onClick = onWeatherRefresh,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Text("Refresh")
+                                    }
+                                }
+
+                                if (weatherLastUpdate > 0L) {
+                                    val formattedTime = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(weatherLastUpdate))
+                                    Text(
+                                        text = "Last updated: $formattedTime",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Not updated yet",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -652,6 +819,15 @@ fun SettingsDialogPreview() {
         supportedRefreshRates = listOf(60, 90, 120),
         confirmImportEnabled = true,
         onConfirmImportEnabledChange = {},
+        weatherLat = "52.52",
+        weatherLon = "13.41",
+        weatherCity = "Berlin",
+        weatherUseGps = false,
+        weatherLastUpdate = 0L,
+        onWeatherLocationChange = { _, _, _ -> },
+        onWeatherUseGpsChange = {},
+        onWeatherRefresh = {},
+        onSearchLocations = { emptyList() },
         onDismissRequest = {}
     )
 }

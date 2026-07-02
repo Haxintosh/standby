@@ -65,11 +65,61 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         sharedPreferences.edit().putBoolean("confirm_plugin_import", enabled).apply()
     }
 
+    val providerManager = ProviderManager(application)
+
+    private val _weatherLat = MutableStateFlow(sharedPreferences.getString("weather_lat", "52.52") ?: "52.52")
+    val weatherLat: StateFlow<String> = _weatherLat.asStateFlow()
+
+    private val _weatherLon = MutableStateFlow(sharedPreferences.getString("weather_lon", "13.41") ?: "13.41")
+    val weatherLon: StateFlow<String> = _weatherLon.asStateFlow()
+
+    private val _weatherCity = MutableStateFlow(sharedPreferences.getString("weather_city", "Berlin") ?: "Berlin")
+    val weatherCity: StateFlow<String> = _weatherCity.asStateFlow()
+
+    private val _weatherUseGps = MutableStateFlow(sharedPreferences.getBoolean("weather_use_gps", false))
+    val weatherUseGps: StateFlow<Boolean> = _weatherUseGps.asStateFlow()
+
+    private val _weatherLastUpdate = MutableStateFlow(sharedPreferences.getLong("weather_last_update", 0L))
+    val weatherLastUpdate: StateFlow<Long> = _weatherLastUpdate.asStateFlow()
+
+    fun setWeatherLocation(lat: String, lon: String, city: String) {
+        _weatherLat.value = lat
+        _weatherLon.value = lon
+        _weatherCity.value = city
+        sharedPreferences.edit()
+            .putString("weather_lat", lat)
+            .putString("weather_lon", lon)
+            .putString("weather_city", city)
+            .apply()
+        triggerWeatherRefresh()
+    }
+
+    fun setWeatherUseGps(enabled: Boolean) {
+        _weatherUseGps.value = enabled
+        sharedPreferences.edit().putBoolean("weather_use_gps", enabled).apply()
+        triggerWeatherRefresh()
+    }
+
+    fun triggerWeatherRefresh() {
+        viewModelScope.launch {
+            providerManager.fetchWeather()
+            _weatherLat.value = sharedPreferences.getString("weather_lat", "52.52") ?: "52.52"
+            _weatherLon.value = sharedPreferences.getString("weather_lon", "13.41") ?: "13.41"
+            _weatherCity.value = sharedPreferences.getString("weather_city", "Berlin") ?: "Berlin"
+            _weatherLastUpdate.value = sharedPreferences.getLong("weather_last_update", 0L)
+        }
+    }
+
+    suspend fun searchLocations(query: String): List<ProviderManager.GeocodingResult> {
+        return providerManager.searchLocations(query)
+    }
+
     init {
         loadPlugins()
         if (sharedPreferences.getBoolean("server_enabled", true)) {
             startServer()
         }
+        providerManager.startHourlyWeatherUpdates(viewModelScope)
     }
 
     fun loadPlugins() {
@@ -510,5 +560,6 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     override fun onCleared() {
         super.onCleared()
         pluginServer?.stop()
+        providerManager.stopWeatherUpdates()
     }
 }

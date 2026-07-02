@@ -1,5 +1,6 @@
 package com.example
 
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -217,5 +218,36 @@ class SensorBridge(
     @JavascriptInterface
     fun getCustomizations(): String {
         return customizationsProvider()
+    }
+
+    @JavascriptInterface
+    fun getNextAlarm(): String {
+        val fallbackValue = "{\"hasAlarm\":false,\"triggerTime\":0,\"creatorPackage\":null,\"formattedTime\":\"\"}"
+        if (!allowedPermissions.contains("alarms")) {
+            Log.w("SensorBridge", "Blocked access to next alarm: Permission not declared in manifest")
+            return fallbackValue
+        }
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        val nextAlarm = alarmManager?.nextAlarmClock
+
+        if (nextAlarm == null) {
+            return fallbackValue
+        }
+
+        val triggerTime = nextAlarm.triggerTime
+        val creatorPackage = nextAlarm.showIntent?.creatorPackage
+
+        val formattedTime = try {
+            SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(triggerTime))
+        } catch (e: Exception) {
+            ""
+        }
+
+        val jsonObj = org.json.JSONObject()
+        jsonObj.put("hasAlarm", true)
+        jsonObj.put("triggerTime", triggerTime)
+        jsonObj.put("creatorPackage", creatorPackage ?: org.json.JSONObject.NULL)
+        jsonObj.put("formattedTime", formattedTime)
+        return jsonObj.toString()
     }
 }
