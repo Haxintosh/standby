@@ -517,4 +517,30 @@ object PluginManager {
             false
         }
     }
+
+    fun renamePlugin(context: Context, localId: String, newName: String): Boolean {
+        return try {
+            val registry = loadRegistry(context).toMutableList()
+            val entryIndex = registry.indexOfFirst { it.localId == localId }
+            if (entryIndex != -1) {
+                val entry = registry[entryIndex]
+                registry[entryIndex] = entry.copy(name = newName)
+                saveRegistry(context, registry)
+                
+                val folder = File(getPluginsDir(context), entry.folderName)
+                val manifestFile = File(folder, "plugin_manifest.json")
+                if (manifestFile.exists()) {
+                    val manifestJson = JSONObject(manifestFile.readText())
+                    manifestJson.put("name", newName)
+                    manifestFile.writeText(manifestJson.toString(2))
+                }
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error renaming plugin $localId", e)
+            false
+        }
+    }
 }

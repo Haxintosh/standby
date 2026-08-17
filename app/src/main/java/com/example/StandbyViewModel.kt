@@ -557,6 +557,20 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun renamePlugin(localId: String, newName: String) {
+        val trimmed = newName.trim()
+        if (trimmed.isBlank()) return
+        val context = getApplication<Application>()
+        if (localId == "com.example.builtin.clock") {
+            DefaultPlugins.renameBuiltInPlugin(sharedPreferences, localId, trimmed)
+            loadPlugins()
+        } else {
+            if (PluginManager.renamePlugin(context, localId, trimmed)) {
+                loadPlugins()
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         pluginServer?.stop()

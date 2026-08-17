@@ -17,12 +17,14 @@ import java.io.ByteArrayInputStream
 @Composable
 fun PluginWebView(
     plugin: PluginModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null
 ) {
     // generate customization json
     val customizationsJson = generateCustomizationsJson(plugin.customizations)
     val currentCustomizations = rememberUpdatedState(customizationsJson)
     val currentPlugin = rememberUpdatedState(plugin) // fix: stale plugin issues webview
+    val currentOnLongClick = rememberUpdatedState(onLongClick)
 //    Log.d("PluginWebView", "render ${plugin.name}")
     AndroidView(
         modifier = modifier.fillMaxSize(),
@@ -62,6 +64,15 @@ fun PluginWebView(
                     ProviderBridge(context, { currentPlugin.value.providers }),
                     "AndroidProviders"
                 )
+
+                setOnLongClickListener {
+                    if (currentOnLongClick.value != null) {
+                        currentOnLongClick.value?.invoke()
+                        true
+                    } else {
+                        false
+                    }
+                }
                 
                 webChromeClient = object : WebChromeClient() {
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
@@ -123,6 +134,14 @@ fun PluginWebView(
         },
         update = { webView ->
 //            Log.d("PluginWebView", "update ${plugin.name}")
+            webView.setOnLongClickListener {
+                if (currentOnLongClick.value != null) {
+                    currentOnLongClick.value?.invoke()
+                    true
+                } else {
+                    false
+                }
+            }
             val baseUrl = if (plugin.directoryPath != null) {
                 val folderName = java.io.File(plugin.directoryPath).name
                 "https://appassets.androidplatform.net/plugins/$folderName/"

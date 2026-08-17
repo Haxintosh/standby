@@ -122,6 +122,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showCustomizationDialog by remember { mutableStateOf(false) }
     var showLayoutsDialog by remember { mutableStateOf(false) }
+    var selectedPluginLocalIdForInfo by remember { mutableStateOf<String?>(null) }
+    val selectedPluginForInfo = plugins.firstOrNull { it.localId == selectedPluginLocalIdForInfo }
     var lastPendingImport by remember { mutableStateOf<PendingPluginImport?>(null) }
     LaunchedEffect(pendingImport) {
         if (pendingImport != null) {
@@ -228,18 +230,27 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                         is StandbyPage.FullWidth -> {
                             PluginWebView(
                                 plugin = standbyPage.plugin,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                onLongClick = {
+                                    selectedPluginLocalIdForInfo = standbyPage.plugin.localId
+                                }
                             )
                         }
                         is StandbyPage.HalfWidth -> {
                             Row(modifier = Modifier.fillMaxSize()) {
                                 PluginWebView(
                                     plugin = standbyPage.leftPlugin,
-                                    modifier = Modifier.weight(1f).fillMaxHeight()
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    onLongClick = {
+                                        selectedPluginLocalIdForInfo = standbyPage.leftPlugin.localId
+                                    }
                                 )
                                 PluginWebView(
                                     plugin = standbyPage.rightPlugin,
-                                    modifier = Modifier.weight(1f).fillMaxHeight()
+                                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    onLongClick = {
+                                        selectedPluginLocalIdForInfo = standbyPage.rightPlugin.localId
+                                    }
                                 )
                             }
                         }
@@ -516,6 +527,23 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                     pendingImport = pending,
                     onConfirm = { customName -> viewModel.confirmImport(customName) },
                     onCancel = { viewModel.cancelImport() }
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = selectedPluginForInfo != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            selectedPluginForInfo?.let { plugin ->
+                PluginInfoDialog(
+                    plugin = plugin,
+                    onRenamePlugin = { localId, newName ->
+                        viewModel.renamePlugin(localId, newName)
+                    },
+                    onDismissRequest = { selectedPluginLocalIdForInfo = null }
                 )
             }
         }

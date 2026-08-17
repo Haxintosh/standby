@@ -5,11 +5,12 @@ import android.content.SharedPreferences
 object DefaultPlugins {
     fun getBuiltInClockPlugin(prefs: SharedPreferences): PluginModel {
         val clockColor = prefs.getString("builtin_customization_com.example.builtin.clock_clockColor", "#D0BCFF") ?: "#D0BCFF"
+        val clockName = prefs.getString("builtin_name_com.example.builtin.clock", "Default Clock") ?: "Default Clock"
         
         return PluginModel(
             localId = "com.example.builtin.clock",
             manifestId = "com.example.builtin.clock",
-            name = "Default Clock",
+            name = clockName,
             description = "Immersive digital clock with battery indicator",
             author = "System",
             version = "1.0.0",
@@ -28,6 +29,10 @@ object DefaultPlugins {
             ),
             isBuiltIn = true
         )
+    }
+
+    fun renameBuiltInPlugin(prefs: SharedPreferences, localId: String, newName: String) {
+        prefs.edit().putString("builtin_name_$localId", newName).apply()
     }
 
     private val BUILT_IN_CLOCK_PLUGIN = """
