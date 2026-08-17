@@ -6,8 +6,9 @@ import android.view.Display
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
-import android.content.Intent
 import android.content.Context
+import android.content.Intent
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -248,7 +249,19 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                     component = provider.configure
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
                 }
-                configLauncher.launch(configIntent)
+                try {
+                    configLauncher.launch(configIntent)
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Configure activity could not be launched for $provider, directly applying widget", e)
+                    if (slot != null) {
+                        viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                    } else {
+                        viewModel.addPageSlotWithAppWidget(widgetId, "full")
+                    }
+                    pendingConfigAppWidgetId = null
+                    pendingConfigProvider = null
+                    pendingAppWidgetSlot = null
+                }
             } else {
                 if (slot != null) {
                     viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
@@ -665,7 +678,14 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                             putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
                         }
-                        bindLauncher.launch(bindIntent)
+                        try {
+                            bindLauncher.launch(bindIntent)
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Failed to launch bind intent", e)
+                            AppWidgetHostHelper.deleteAppWidgetId(context, appWidgetId)
+                            pendingConfigAppWidgetId = null
+                            pendingConfigProvider = null
+                        }
                     } else if (provider.configure != null) {
                         pendingConfigAppWidgetId = appWidgetId
                         pendingConfigProvider = provider
@@ -673,7 +693,20 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                             component = provider.configure
                             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                         }
-                        configLauncher.launch(configIntent)
+                        try {
+                            configLauncher.launch(configIntent)
+                        } catch (e: Exception) {
+                            Log.w("MainActivity", "Configure activity could not be launched for $provider, directly applying widget", e)
+                            val slot = pendingAppWidgetSlot
+                            if (slot != null) {
+                                viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, appWidgetId)
+                            } else {
+                                viewModel.addPageSlotWithAppWidget(appWidgetId, "full")
+                            }
+                            pendingConfigAppWidgetId = null
+                            pendingConfigProvider = null
+                            pendingAppWidgetSlot = null
+                        }
                     } else {
                         val slot = pendingAppWidgetSlot
                         if (slot != null) {
@@ -744,11 +777,15 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                     },
                     onConfigureWidget = if (widgetItem.providerInfo.configure != null) {
                         {
-                            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                                component = widgetItem.providerInfo.configure
-                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetItem.appWidgetId)
+                            try {
+                                val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                                    component = widgetItem.providerInfo.configure
+                                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetItem.appWidgetId)
+                                }
+                                context.startActivity(configIntent)
+                            } catch (e: Exception) {
+                                Log.w("MainActivity", "Failed to launch widget configuration activity", e)
                             }
-                            context.startActivity(configIntent)
                         }
                     } else null,
                     onDismissRequest = { selectedAppWidgetForInfo = null }
