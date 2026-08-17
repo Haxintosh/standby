@@ -111,6 +111,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val weatherCity by viewModel.weatherCity.collectAsState()
     val weatherUseGps by viewModel.weatherUseGps.collectAsState()
     val weatherLastUpdate by viewModel.weatherLastUpdate.collectAsState()
+    val pluginRefreshTriggers by viewModel.pluginRefreshTriggers.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -294,6 +295,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                                     PluginWebView(
                                         plugin = item.plugin,
                                         modifier = Modifier.fillMaxSize(),
+                                        refreshTrigger = pluginRefreshTriggers[item.plugin.localId] ?: 0L,
                                         onLongClick = {
                                             selectedPluginLocalIdForInfo = item.plugin.localId
                                         }
@@ -320,6 +322,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                                             PluginWebView(
                                                 plugin = item.plugin,
                                                 modifier = Modifier.fillMaxSize(),
+                                                refreshTrigger = pluginRefreshTriggers[item.plugin.localId] ?: 0L,
                                                 onLongClick = {
                                                     selectedPluginLocalIdForInfo = item.plugin.localId
                                                 }
@@ -344,6 +347,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                                             PluginWebView(
                                                 plugin = item.plugin,
                                                 modifier = Modifier.fillMaxSize(),
+                                                refreshTrigger = pluginRefreshTriggers[item.plugin.localId] ?: 0L,
                                                 onLongClick = {
                                                     selectedPluginLocalIdForInfo = item.plugin.localId
                                                 }
@@ -699,6 +703,9 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                     onRenamePlugin = { localId, newName ->
                         viewModel.renamePlugin(localId, newName)
                     },
+                    onRefreshPlugin = {
+                        viewModel.refreshPlugin(plugin.localId)
+                    },
                     onDismissRequest = { selectedPluginLocalIdForInfo = null }
                 )
             }
@@ -713,6 +720,13 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             selectedAppWidgetForInfo?.let { widgetItem ->
                 AppWidgetInfoDialog(
                     item = widgetItem,
+                    onRefreshWidget = {
+                        viewModel.refreshNativeAppWidget(
+                            context = context,
+                            appWidgetId = widgetItem.appWidgetId,
+                            provider = widgetItem.providerInfo.provider
+                        )
+                    },
                     onConfigureWidget = if (widgetItem.providerInfo.configure != null) {
                         {
                             val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {

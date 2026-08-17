@@ -18,6 +18,7 @@ import java.io.ByteArrayInputStream
 fun PluginWebView(
     plugin: PluginModel,
     modifier: Modifier = Modifier,
+    refreshTrigger: Long = 0L,
     onLongClick: (() -> Unit)? = null
 ) {
     // generate customization json
@@ -129,7 +130,7 @@ fun PluginWebView(
                     "https://local.app/"
                 }
                 loadDataWithBaseURL(baseUrl, currentPlugin.value.htmlContent, "text/html", "UTF-8", null)
-                tag = Pair(currentPlugin.value.htmlContent, customizationsJson)
+                tag = Triple(currentPlugin.value.htmlContent, customizationsJson, refreshTrigger)
             }
         },
         update = { webView ->
@@ -148,19 +149,20 @@ fun PluginWebView(
             } else {
                 "https://local.app/"
             }
-            val tagPair = webView.tag as? Pair<*, *>
-            val currentContent = tagPair?.first as? String
-            val currentCustomization = tagPair?.second as? String
+            val tagTriple = webView.tag as? Triple<*, *, *>
+            val currentContent = tagTriple?.first as? String
+            val currentCustomization = tagTriple?.second as? String
+            val currentRefresh = tagTriple?.third as? Long ?: 0L
             
-            if (currentContent != plugin.htmlContent) {
-                Log.d("PluginWebView", "Updating WebView with new content for ${plugin.name}")
+            if (currentRefresh != refreshTrigger || currentContent != plugin.htmlContent) {
+                Log.d("PluginWebView", "Reloading WebView for ${plugin.name} (refresh: $refreshTrigger)")
                 webView.loadDataWithBaseURL(baseUrl, plugin.htmlContent, "text/html", "UTF-8", null)
-                webView.tag = Pair(plugin.htmlContent, customizationsJson)
+                webView.tag = Triple(plugin.htmlContent, customizationsJson, refreshTrigger)
             } else if (currentCustomization != customizationsJson) {
                 Log.d("PluginWebView", "Injecting dynamic customization updates for ${plugin.name}")
                 val updateScript = generateCustomizationInjectionScript(plugin.customizations)
                 webView.evaluateJavascript(updateScript, null)
-                webView.tag = Pair(plugin.htmlContent, customizationsJson)
+                webView.tag = Triple(plugin.htmlContent, customizationsJson, refreshTrigger)
             }
         }
     )

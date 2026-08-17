@@ -1,7 +1,10 @@
 package com.example
 
 import android.app.Application
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -81,6 +84,28 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
 
     private val _weatherLastUpdate = MutableStateFlow(sharedPreferences.getLong("weather_last_update", 0L))
     val weatherLastUpdate: StateFlow<Long> = _weatherLastUpdate.asStateFlow()
+
+    private val _pluginRefreshTriggers = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val pluginRefreshTriggers: StateFlow<Map<String, Long>> = _pluginRefreshTriggers.asStateFlow()
+
+    fun refreshPlugin(localId: String) {
+        val current = _pluginRefreshTriggers.value.toMutableMap()
+        current[localId] = System.currentTimeMillis()
+        _pluginRefreshTriggers.value = current
+        triggerWeatherRefresh()
+    }
+
+    fun refreshNativeAppWidget(context: Context, appWidgetId: Int, provider: ComponentName) {
+        try {
+            val updateIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).apply {
+                component = provider
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
+            }
+            context.sendBroadcast(updateIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     fun setWeatherLocation(lat: String, lon: String, city: String) {
         _weatherLat.value = lat
