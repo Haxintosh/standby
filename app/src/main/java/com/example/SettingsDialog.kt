@@ -60,725 +60,745 @@ fun SettingsDialog(
     onSearchLocations: suspend (String) -> List<ProviderManager.GeocodingResult>,
     onDismissRequest: () -> Unit
 ) {
+    var selectedTabIndex by remember { mutableStateOf(0) }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(24.dp)
+        ) {
+            // header row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(360.dp)
+                    ) {
+                        Tab(
+                            selected = selectedTabIndex == 0,
+                            onClick = { selectedTabIndex = 0 },
+                            text = { Text("General Settings", fontWeight = FontWeight.Bold) }
+                        )
+                        Tab(
+                            selected = selectedTabIndex == 1,
+                            onClick = { selectedTabIndex = 1 },
+                            text = { Text("Providers", fontWeight = FontWeight.Bold) }
+                        )
+                    }
+                }
+                IconButton(onClick = onDismissRequest) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // tab content
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                if (selectedTabIndex == 0) {
+                    GeneralSettingsTab(
+                        burnInProtectionEnabled = burnInProtectionEnabled,
+                        onBurnInProtectionEnabledChange = onBurnInProtectionEnabledChange,
+                        delayAfterInteraction = delayAfterInteraction,
+                        onDelayAfterInteractionChange = onDelayAfterInteractionChange,
+                        protectionRatio = protectionRatio,
+                        onProtectionRatioChange = onProtectionRatioChange,
+                        serverEnabled = serverEnabled,
+                        onServerEnabledChange = onServerEnabledChange,
+                        serverIp = serverIp,
+                        serverPort = serverPort,
+                        serverPin = serverPin,
+                        hideControlsOnIdle = hideControlsOnIdle,
+                        onHideControlsOnIdleChange = onHideControlsOnIdleChange,
+                        lowRefreshRateEnabled = lowRefreshRateEnabled,
+                        onLowRefreshRateEnabledChange = onLowRefreshRateEnabledChange,
+                        lowRefreshRateValue = lowRefreshRateValue,
+                        onLowRefreshRateValueChange = onLowRefreshRateValueChange,
+                        supportedRefreshRates = supportedRefreshRates,
+                        confirmImportEnabled = confirmImportEnabled,
+                        onConfirmImportEnabledChange = onConfirmImportEnabledChange
+                    )
+                } else {
+                    ProviderSettingsTab(
+                        weatherLat = weatherLat,
+                        weatherLon = weatherLon,
+                        weatherCity = weatherCity,
+                        weatherUseGps = weatherUseGps,
+                        weatherLastUpdate = weatherLastUpdate,
+                        onWeatherLocationChange = onWeatherLocationChange,
+                        onWeatherUseGpsChange = onWeatherUseGpsChange,
+                        onWeatherRefresh = onWeatherRefresh,
+                        onSearchLocations = onSearchLocations
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GeneralSettingsTab(
+    burnInProtectionEnabled: Boolean,
+    onBurnInProtectionEnabledChange: (Boolean) -> Unit,
+    delayAfterInteraction: Boolean,
+    onDelayAfterInteractionChange: (Boolean) -> Unit,
+    protectionRatio: Int,
+    onProtectionRatioChange: (Int) -> Unit,
+    serverEnabled: Boolean,
+    onServerEnabledChange: (Boolean) -> Unit,
+    serverIp: String,
+    serverPort: Int,
+    serverPin: String,
+    hideControlsOnIdle: Boolean,
+    onHideControlsOnIdleChange: (Boolean) -> Unit,
+    lowRefreshRateEnabled: Boolean,
+    onLowRefreshRateEnabledChange: (Boolean) -> Unit,
+    lowRefreshRateValue: Int,
+    onLowRefreshRateValueChange: (Int) -> Unit,
+    supportedRefreshRates: List<Int>,
+    confirmImportEnabled: Boolean,
+    onConfirmImportEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // left column
+        Card(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = borderStroke()
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .safeDrawingPadding()
-                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // header row
+                Text(
+                    text = "OLED Protection",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Standby Settings",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            text = "Enable Protection",
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
-                    IconButton(onClick = onDismissRequest) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        Text(
+                            text = "Combats static screen burn-in risk",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    Switch(
+                        checked = burnInProtectionEnabled,
+                        onCheckedChange = onBurnInProtectionEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+                
+                if (burnInProtectionEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Hide on touch (5s delay)",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Temporarily reveals widgets when interacted",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = delayAfterInteraction,
+                            onCheckedChange = onDelayAfterInteractionChange,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+                    
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    
+                    val percentage = (protectionRatio.toFloat() / (protectionRatio + 1) * 100).toInt()
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Protection Strength",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$percentage% Pixels Off",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        val haptic = LocalHapticFeedback.current
+                        Slider(
+                            value = protectionRatio.toFloat(),
+                            onValueChange = { newValue ->
+                                val newInt = newValue.toInt()
+                                if (newInt != protectionRatio) {
+                                    onProtectionRatioChange(newInt)
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            valueRange = 1f..5f,
+                            steps = 3,
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                thumbColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Minimal (50%)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Maximum (83%)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.error,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Warning",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "Warning: Disabling protection may lead to screen burn-in on OLED displays.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 
-                // content columns
+                // interface settings
+                Text(
+                    text = "Interface Settings",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // left column
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        border = borderStroke()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hide Controls on Idle",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Hides UI buttons after 5 seconds of inactivity",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = hideControlsOnIdle,
+                        onCheckedChange = onHideControlsOnIdleChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+                
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                
+                // display refresh rate
+                Text(
+                    text = "Display Refresh Rate",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Low Refresh Rate on Idle",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Forces display to lowest rate after 5s idle",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = lowRefreshRateEnabled,
+                        onCheckedChange = onLowRefreshRateEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+                
+                if (lowRefreshRateEnabled && supportedRefreshRates.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "OLED Protection",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = "Idle Refresh Rate Target",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Enable Protection",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Combats static screen burn-in risk",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = burnInProtectionEnabled,
-                                    onCheckedChange = onBurnInProtectionEnabledChange,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                    )
-                                )
-                            }
-                            
-                            if (burnInProtectionEnabled) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Hide on touch (5s delay)",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Temporarily reveals widgets when interacted",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Switch(
-                                        checked = delayAfterInteraction,
-                                        onCheckedChange = onDelayAfterInteractionChange,
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                        )
-                                    )
-                                }
-                                
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                
-                                val percentage = (protectionRatio.toFloat() / (protectionRatio + 1) * 100).toInt()
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Protection Strength",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "$percentage% Pixels Off",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    
-                                    val haptic = LocalHapticFeedback.current
-                                    Slider(
-                                        value = protectionRatio.toFloat(),
-                                        onValueChange = { newValue ->
-                                            val newInt = newValue.toInt()
-                                            if (newInt != protectionRatio) {
-                                                onProtectionRatioChange(newInt)
-                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            }
-                                        },
-                                        valueRange = 1f..5f,
-                                        steps = 3,
-                                        colors = SliderDefaults.colors(
-                                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                                            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                            thumbColor = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "Minimal (50%)",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "Maximum (83%)",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            color = MaterialTheme.colorScheme.errorContainer,
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .border(
-                                            width = 1.dp,
-                                            color = MaterialTheme.colorScheme.error,
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .padding(12.dp)
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Warning,
-                                            contentDescription = "Warning",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                        Text(
-                                            text = "Warning: Disabling protection may lead to screen burn-in on OLED displays.",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onErrorContainer
-                                        )
-                                    }
-                                }
-                            }
-                            
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            
-                            // interface settings
                             Text(
-                                text = "Interface Settings",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "$lowRefreshRateValue Hz",
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        val haptic = LocalHapticFeedback.current
+                        if (supportedRefreshRates.size > 1) {
+                            val currentIndex = supportedRefreshRates.indexOf(lowRefreshRateValue).coerceAtLeast(0)
+                            Slider(
+                                value = currentIndex.toFloat(),
+                                onValueChange = { newValue ->
+                                    val newIndex = newValue.roundToInt().coerceIn(0, supportedRefreshRates.size - 1)
+                                    if (supportedRefreshRates[newIndex] != lowRefreshRateValue) {
+                                        onLowRefreshRateValueChange(supportedRefreshRates[newIndex])
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                },
+                                valueRange = 0f..(supportedRefreshRates.size - 1).toFloat(),
+                                steps = if (supportedRefreshRates.size > 2) supportedRefreshRates.size - 2 else 0,
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                    thumbColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Hide Controls on Idle",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Hides UI buttons after 5 seconds of inactivity",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = hideControlsOnIdle,
-                                    onCheckedChange = onHideControlsOnIdleChange,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                    )
+                                Text(
+                                    text = "${supportedRefreshRates.first()} Hz",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${supportedRefreshRates.last()} Hz",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            
-                            // display refresh rate
+                        } else {
                             Text(
-                                text = "Display Refresh Rate",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Only ${supportedRefreshRates.firstOrNull() ?: 60} Hz is supported by this device.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // right column
+        Card(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = borderStroke()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Remote Plugin Server",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Enable HTTP Server",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Allows remote widget installation",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = serverEnabled,
+                        onCheckedChange = onServerEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+                
+                if (serverEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        color = Color(0xFF4CAF50),
+                                        shape = CircleShape
+                                    )
+                            )
+                            Text(
+                                text = "Server running on local network",
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        
+                        Column {
+                            Text(
+                                text = "HTTP SERVER ADDRESS",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Low Refresh Rate on Idle",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Forces display to lowest rate after 5s idle",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = lowRefreshRateEnabled,
-                                    onCheckedChange = onLowRefreshRateEnabledChange,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                    )
-                                )
-                            }
-                            
-                            if (lowRefreshRateEnabled && supportedRefreshRates.isNotEmpty()) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Idle Refresh Rate Target",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = "$lowRefreshRateValue Hz",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    
-                                    val haptic = LocalHapticFeedback.current
-                                    if (supportedRefreshRates.size > 1) {
-                                        val currentIndex = supportedRefreshRates.indexOf(lowRefreshRateValue).coerceAtLeast(0)
-                                        Slider(
-                                            value = currentIndex.toFloat(),
-                                            onValueChange = { newValue ->
-                                                val newIndex = newValue.roundToInt().coerceIn(0, supportedRefreshRates.size - 1)
-                                                if (supportedRefreshRates[newIndex] != lowRefreshRateValue) {
-                                                    onLowRefreshRateValueChange(supportedRefreshRates[newIndex])
-                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                }
-                                            },
-                                            valueRange = 0f..(supportedRefreshRates.size - 1).toFloat(),
-                                            steps = if (supportedRefreshRates.size > 2) supportedRefreshRates.size - 2 else 0,
-                                            colors = SliderDefaults.colors(
-                                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                                thumbColor = MaterialTheme.colorScheme.primary
-                                            )
-                                        )
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = "${supportedRefreshRates.first()} Hz",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = "${supportedRefreshRates.last()} Hz",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    } else {
-                                        Text(
-                                            text = "Only ${supportedRefreshRates.firstOrNull() ?: 60} Hz is supported by this device.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = "http://$serverIp:$serverPort",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        
+                        Column {
+                            Text(
+                                text = "SERVER SECURITY PIN",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = serverPin,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                letterSpacing = 2.sp
+                            )
                         }
                     }
                     
-                    // right column
-                    Card(
+                    Text(
+                        text = "To upload plugins: Open the URL above on your computer/phone and enter the PIN.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        border = borderStroke()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "Remote Plugin Server",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp)
                             )
-                            
+                            .padding(16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Enable HTTP Server",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Allows remote widget installation",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = serverEnabled,
-                                    onCheckedChange = onServerEnabledChange,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                    )
-                                )
-                            }
-                            
-                            if (serverEnabled) {
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .border(
-                                            width = 1.dp,
-                                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                                            shape = RoundedCornerShape(12.dp)
-                                        )
-                                        .padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .background(
-                                                    color = Color(0xFF4CAF50),
-                                                    shape = CircleShape
-                                                )
-                                        )
-                                        Text(
-                                            text = "Server running on local network",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                    
-                                    Column {
-                                        Text(
-                                            text = "HTTP SERVER ADDRESS",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Text(
-                                            text = "http://$serverIp:$serverPort",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                    }
-                                    
-                                    Column {
-                                        Text(
-                                            text = "SERVER SECURITY PIN",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Text(
-                                            text = serverPin,
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            letterSpacing = 2.sp
-                                        )
-                                    }
-                                }
-                                
-                                Text(
-                                    text = "To upload plugins: Open the URL above on your computer/phone and enter the PIN.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
+                                        .size(8.dp)
                                         .background(
-                                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                            shape = RoundedCornerShape(12.dp)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            shape = CircleShape
                                         )
-                                        .padding(16.dp)
-                                ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(8.dp)
-                                                    .background(
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                                        shape = CircleShape
-                                                    )
-                                            )
-                                            Text(
-                                                text = "Server offline",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Text(
-                                            text = "Remote widget uploader is disabled. Enable it to transfer HTML widget layouts wirelessly.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                            
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                            Text(
-                                text = "Import Settings",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Confirm Plugin Import",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Prompt details before adding new widgets",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = confirmImportEnabled,
-                                    onCheckedChange = onConfirmImportEnabledChange,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                    )
+                                )
+                                Text(
+                                    text = "Server offline",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
                             Text(
-                                text = "Weather Settings",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = "Remote widget uploader is disabled. Enable it to transfer HTML widget layouts wirelessly.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    }
+                }
+                
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                
+                Text(
+                    text = "Import Settings",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Confirm Plugin Import",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Prompt details before adding new widgets",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = confirmImportEnabled,
+                        onCheckedChange = onConfirmImportEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
 
-                            Row(
+@Composable
+fun ProviderSettingsTab(
+    weatherLat: String,
+    weatherLon: String,
+    weatherCity: String,
+    weatherUseGps: Boolean,
+    weatherLastUpdate: Long,
+    onWeatherLocationChange: (String, String, String) -> Unit,
+    onWeatherUseGpsChange: (Boolean) -> Unit,
+    onWeatherRefresh: () -> Unit,
+    onSearchLocations: suspend (String) -> List<ProviderManager.GeocodingResult>
+) {
+    Card(
+        modifier = Modifier.fillMaxSize(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = borderStroke()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Weather Settings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            
+            var searchQuery by remember { mutableStateOf("") }
+            var searchResults by remember { mutableStateOf<List<ProviderManager.GeocodingResult>>(emptyList()) }
+            val coroutineScope = rememberCoroutineScope()
+            
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { newValue ->
+                        searchQuery = newValue
+                        if (newValue.length >= 2) {
+                            coroutineScope.launch {
+                                searchResults = onSearchLocations(newValue)
+                            }
+                        } else {
+                            searchResults = emptyList()
+                        }
+                    },
+                    label = { Text("Search City/Region") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                if (searchResults.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                            .padding(4.dp)
+                    ) {
+                        searchResults.forEach { result ->
+                            TextButton(
+                                onClick = {
+                                    val displayName = "${result.name}${if (result.admin1 != null) ", ${result.admin1}" else ""}${if (result.country != null) ", ${result.country}" else ""}"
+                                    onWeatherLocationChange(result.latitude.toString(), result.longitude.toString(), displayName)
+                                    searchQuery = ""
+                                    searchResults = emptyList()
+                                },
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Auto-detect Location (GPS)",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Uses GPS to determine local weather",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = weatherUseGps,
-                                    onCheckedChange = onWeatherUseGpsChange,
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                    )
-                                )
-                            }
-
-                            if (!weatherUseGps) {
-                                var searchQuery by remember { mutableStateOf("") }
-                                var searchResults by remember { mutableStateOf<List<ProviderManager.GeocodingResult>>(emptyList()) }
-                                val coroutineScope = rememberCoroutineScope()
-
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    OutlinedTextField(
-                                        value = searchQuery,
-                                        onValueChange = { newValue ->
-                                            searchQuery = newValue
-                                            if (newValue.length >= 2) {
-                                                coroutineScope.launch {
-                                                    searchResults = onSearchLocations(newValue)
-                                                }
-                                            } else {
-                                                searchResults = emptyList()
-                                            }
-                                        },
-                                        label = { Text("Search City/Region") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true
-                                    )
-
-                                    if (searchResults.isNotEmpty()) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-                                                .padding(4.dp)
-                                        ) {
-                                            searchResults.forEach { result ->
-                                                TextButton(
-                                                    onClick = {
-                                                        val displayName = "${result.name}${if (result.admin1 != null) ", ${result.admin1}" else ""}${if (result.country != null) ", ${result.country}" else ""}"
-                                                        onWeatherLocationChange(result.latitude.toString(), result.longitude.toString(), displayName)
-                                                        searchQuery = ""
-                                                        searchResults = emptyList()
-                                                    },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.Start
-                                                    ) {
-                                                        Text(
-                                                            text = "${result.name}${if (result.admin1 != null) ", ${result.admin1}" else ""}${if (result.country != null) ", ${result.country}" else ""}",
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            color = MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
-                                        shape = RoundedCornerShape(12.dp)
-                                    )
-                                    .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    horizontalArrangement = Arrangement.Start
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = "Active Location",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = weatherCity,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Lat: $weatherLat, Lon: $weatherLon",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Button(
-                                        onClick = onWeatherRefresh,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary
-                                        )
-                                    ) {
-                                        Text("Refresh")
-                                    }
-                                }
-
-                                if (weatherLastUpdate > 0L) {
-                                    val formattedTime = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(weatherLastUpdate))
                                     Text(
-                                        text = "Last updated: $formattedTime",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Not updated yet",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = "${result.name}${if (result.admin1 != null) ", ${result.admin1}" else ""}${if (result.country != null) ", ${result.country}" else ""}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                             }
@@ -786,8 +806,68 @@ fun SettingsDialog(
                     }
                 }
             }
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Active Location",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = weatherCity,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Lat: $weatherLat, Lon: $weatherLon",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Button(
+                        onClick = onWeatherRefresh,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("Refresh")
+                    }
+                }
+                
+                if (weatherLastUpdate > 0L) {
+                    val formattedTime = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(weatherLastUpdate))
+                    Text(
+                        text = "Last updated: $formattedTime",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Not updated yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
+}
 
 @Composable
 private fun borderStroke() = androidx.compose.foundation.BorderStroke(
