@@ -3,6 +3,10 @@ package com.example
 import android.os.Bundle
 import android.os.Build
 import android.view.Display
+import android.app.Activity
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
+import android.content.Intent
 import android.content.Context
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -197,6 +201,63 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         }
     }
     
+    // AppWidgetHost management
+    val appWidgetHost = remember(context) { AppWidgetHostHelper.getHost(context) }
+    DisposableEffect(Unit) {
+        AppWidgetHostHelper.startListening(context)
+        onDispose {
+            AppWidgetHostHelper.stopListening()
+        }
+    }
+
+    var showAppWidgetPicker by remember { mutableStateOf(false) }
+    var pendingAppWidgetSlot by remember { mutableStateOf<Pair<String, Boolean?>?>(null) } // pageId, isLeft
+    var pendingConfigAppWidgetId by remember { mutableStateOf<Int?>(null) }
+    var pendingConfigProvider by remember { mutableStateOf<AppWidgetProviderInfo?>(null) }
+    var selectedAppWidgetForInfo by remember { mutableStateOf<StandbyItem.NativeAppWidget?>(null) }
+
+    val configLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val widgetId = pendingConfigAppWidgetId
+        val slot = pendingAppWidgetSlot
+        if (result.resultCode == Activity.RESULT_OK && widgetId != null && slot != null) {
+            viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+        } else if (widgetId != null) {
+            AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
+        }
+        pendingConfigAppWidgetId = null
+        pendingConfigProvider = null
+        pendingAppWidgetSlot = null
+    }
+
+    val bindLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val widgetId = pendingConfigAppWidgetId
+        val provider = pendingConfigProvider
+        val slot = pendingAppWidgetSlot
+        if (result.resultCode == Activity.RESULT_OK && widgetId != null && provider != null && slot != null) {
+            if (provider.configure != null) {
+                val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                    component = provider.configure
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                }
+                configLauncher.launch(configIntent)
+            } else {
+                viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                pendingConfigAppWidgetId = null
+                pendingConfigProvider = null
+                pendingAppWidgetSlot = null
+            }
+        } else if (widgetId != null) {
+            AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
+            pendingConfigAppWidgetId = null
+            pendingConfigProvider = null
+            pendingAppWidgetSlot = null
+        }
+    }
+
     // plugin picker
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -228,30 +289,79 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 if (standbyPage != null) {
                     when (standbyPage) {
                         is StandbyPage.FullWidth -> {
-                            PluginWebView(
-                                plugin = standbyPage.plugin,
-                                modifier = Modifier.fillMaxSize(),
-                                onLongClick = {
-                                    selectedPluginLocalIdForInfo = standbyPage.plugin.localId
+                            when (val item = standbyPage.item) {
+                                is StandbyItem.Plugin -> {
+                                    PluginWebView(
+                                        plugin = item.plugin,
+                                        modifier = Modifier.fillMaxSize(),
+                                        onLongClick = {
+                                            selectedPluginLocalIdForInfo = item.plugin.localId
+                                        }
+                                    )
                                 }
-                            )
+                                is StandbyItem.NativeAppWidget -> {
+                                    AppWidgetView(
+                                        appWidgetHost = appWidgetHost,
+                                        appWidgetId = item.appWidgetId,
+                                        providerInfo = item.providerInfo,
+                                        modifier = Modifier.fillMaxSize(),
+                                        onLongClick = {
+                                            selectedAppWidgetForInfo = item
+                                        }
+                                    )
+                                }
+                            }
                         }
                         is StandbyPage.HalfWidth -> {
                             Row(modifier = Modifier.fillMaxSize()) {
-                                PluginWebView(
-                                    plugin = standbyPage.leftPlugin,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    onLongClick = {
-                                        selectedPluginLocalIdForInfo = standbyPage.leftPlugin.localId
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    when (val item = standbyPage.leftItem) {
+                                        is StandbyItem.Plugin -> {
+                                            PluginWebView(
+                                                plugin = item.plugin,
+                                                modifier = Modifier.fillMaxSize(),
+                                                onLongClick = {
+                                                    selectedPluginLocalIdForInfo = item.plugin.localId
+                                                }
+                                            )
+                                        }
+                                        is StandbyItem.NativeAppWidget -> {
+                                            AppWidgetView(
+                                                appWidgetHost = appWidgetHost,
+                                                appWidgetId = item.appWidgetId,
+                                                providerInfo = item.providerInfo,
+                                                modifier = Modifier.fillMaxSize(),
+                                                onLongClick = {
+                                                    selectedAppWidgetForInfo = item
+                                                }
+                                            )
+                                        }
                                     }
-                                )
-                                PluginWebView(
-                                    plugin = standbyPage.rightPlugin,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    onLongClick = {
-                                        selectedPluginLocalIdForInfo = standbyPage.rightPlugin.localId
+                                }
+                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                    when (val item = standbyPage.rightItem) {
+                                        is StandbyItem.Plugin -> {
+                                            PluginWebView(
+                                                plugin = item.plugin,
+                                                modifier = Modifier.fillMaxSize(),
+                                                onLongClick = {
+                                                    selectedPluginLocalIdForInfo = item.plugin.localId
+                                                }
+                                            )
+                                        }
+                                        is StandbyItem.NativeAppWidget -> {
+                                            AppWidgetView(
+                                                appWidgetHost = appWidgetHost,
+                                                appWidgetId = item.appWidgetId,
+                                                providerInfo = item.providerInfo,
+                                                modifier = Modifier.fillMaxSize(),
+                                                onLongClick = {
+                                                    selectedAppWidgetForInfo = item
+                                                }
+                                            )
+                                        }
                                     }
-                                )
+                                }
                             }
                         }
                     }
@@ -315,8 +425,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
 
         val activePage = standbyPages.getOrNull(pagerState.currentPage)
         val hasCustomization = when (activePage) {
-            is StandbyPage.FullWidth -> activePage.plugin.customizations.isNotEmpty()
-            is StandbyPage.HalfWidth -> activePage.leftPlugin.customizations.isNotEmpty() || activePage.rightPlugin.customizations.isNotEmpty()
+            is StandbyPage.FullWidth -> activePage.plugin?.customizations?.isNotEmpty() == true
+            is StandbyPage.HalfWidth -> (activePage.leftPlugin?.customizations?.isNotEmpty() == true) || (activePage.rightPlugin?.customizations?.isNotEmpty() == true)
             null -> false
         }
 
@@ -512,7 +622,53 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 },
                 onDeletePlugin = { localId -> viewModel.deletePlugin(localId) },
                 onImportPluginClick = { filePickerLauncher.launch("*/*") },
+                onPickAppWidget = { pageId, isLeft ->
+                    pendingAppWidgetSlot = Pair(pageId, isLeft)
+                    showAppWidgetPicker = true
+                },
                 onDismissRequest = { showLayoutsDialog = false }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showAppWidgetPicker,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            AppWidgetPickerDialog(
+                onSelectProvider = { provider ->
+                    showAppWidgetPicker = false
+                    val slot = pendingAppWidgetSlot
+                    if (slot != null) {
+                        val appWidgetId = AppWidgetHostHelper.allocateAppWidgetId(context)
+                        val bound = AppWidgetHostHelper.bindAppWidgetIdIfAllowed(context, appWidgetId, provider.provider)
+                        if (!bound) {
+                            pendingConfigAppWidgetId = appWidgetId
+                            pendingConfigProvider = provider
+                            val bindIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
+                            }
+                            bindLauncher.launch(bindIntent)
+                        } else if (provider.configure != null) {
+                            pendingConfigAppWidgetId = appWidgetId
+                            pendingConfigProvider = provider
+                            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                                component = provider.configure
+                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                            }
+                            configLauncher.launch(configIntent)
+                        } else {
+                            viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, appWidgetId)
+                            pendingAppWidgetSlot = null
+                        }
+                    }
+                },
+                onDismissRequest = {
+                    showAppWidgetPicker = false
+                    pendingAppWidgetSlot = null
+                }
             )
         }
 
@@ -544,6 +700,29 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                         viewModel.renamePlugin(localId, newName)
                     },
                     onDismissRequest = { selectedPluginLocalIdForInfo = null }
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = selectedAppWidgetForInfo != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            selectedAppWidgetForInfo?.let { widgetItem ->
+                AppWidgetInfoDialog(
+                    item = widgetItem,
+                    onConfigureWidget = if (widgetItem.providerInfo.configure != null) {
+                        {
+                            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                                component = widgetItem.providerInfo.configure
+                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetItem.appWidgetId)
+                            }
+                            context.startActivity(configIntent)
+                        }
+                    } else null,
+                    onDismissRequest = { selectedAppWidgetForInfo = null }
                 )
             }
         }

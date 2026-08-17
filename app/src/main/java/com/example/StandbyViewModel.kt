@@ -144,6 +144,25 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun resolveStandbyItem(context: Context, localId: String?, installed: List<PluginModel>): StandbyItem? {
+        if (localId.isNullOrBlank()) return null
+        if (localId.startsWith("appwidget:")) {
+            val appWidgetId = localId.removePrefix("appwidget:").toIntOrNull()
+            if (appWidgetId != null) {
+                val providerInfo = AppWidgetHostHelper.getAppWidgetInfo(context, appWidgetId)
+                if (providerInfo != null) {
+                    val pm = context.packageManager
+                    val label = providerInfo.loadLabel(pm)?.toString() ?: "Android Widget"
+                    val pkgName = providerInfo.provider.packageName
+                    return StandbyItem.NativeAppWidget(appWidgetId, providerInfo, label, pkgName)
+                }
+            }
+            return null
+        }
+        val plugin = installed.firstOrNull { it.localId == localId }
+        return if (plugin != null) StandbyItem.Plugin(plugin) else null
+    }
+
     private fun rebuildStandbyPages() {
         val context = getApplication<Application>()
         val installed = _plugins.value
@@ -156,40 +175,43 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
             val halfPlugins = installed.filter { !it.isBuiltIn && it.size == "half" }
             
             for (p in fullPlugins) {
-                pagesList.add(StandbyPage.FullWidth(p))
+                pagesList.add(StandbyPage.FullWidth(StandbyItem.Plugin(p)))
             }
             
             for (i in halfPlugins.indices step 2) {
                 val left = halfPlugins[i]
                 val right = if (i + 1 < halfPlugins.size) halfPlugins[i + 1] else halfPlugins[i]
-                pagesList.add(StandbyPage.HalfWidth(left, right, "default_half_$i"))
+                pagesList.add(StandbyPage.HalfWidth(StandbyItem.Plugin(left), StandbyItem.Plugin(right), "default_half_$i"))
             }
             
             if (pagesList.isEmpty()) {
                 val defaultClock = installed.firstOrNull { it.localId == "com.example.builtin.clock" }
                 if (defaultClock != null) {
-                    pagesList.add(StandbyPage.FullWidth(defaultClock))
+                    pagesList.add(StandbyPage.FullWidth(StandbyItem.Plugin(defaultClock)))
                 }
             }
         } else {
+            val defaultFull = installed.firstOrNull { it.localId == "com.example.builtin.clock" }?.localId ?: ""
+            val defaultHalf = installed.firstOrNull { it.size == "half" }?.localId ?: defaultFull
+
             for (entry in layout) {
                 if (entry.type == "full") {
-                    val plugin = installed.firstOrNull { it.localId == entry.pluginLocalId }
-                        ?: installed.firstOrNull { it.localId == "com.example.builtin.clock" }
-                    if (plugin != null) {
-                        pagesList.add(StandbyPage.FullWidth(plugin, entry.pageId))
+                    val item = resolveStandbyItem(context, entry.pluginLocalId, installed)
+                        ?: resolveStandbyItem(context, defaultFull, installed)
+                    if (item != null) {
+                        pagesList.add(StandbyPage.FullWidth(item, entry.pageId))
                     }
                 } else {
-                    val left = installed.firstOrNull { it.localId == entry.leftLocalId }
-                        ?: installed.firstOrNull { it.size == "half" }
-                        ?: installed.firstOrNull { it.localId == "com.example.builtin.clock" }
+                    val leftItem = resolveStandbyItem(context, entry.leftLocalId, installed)
+                        ?: resolveStandbyItem(context, defaultHalf, installed)
+                        ?: resolveStandbyItem(context, defaultFull, installed)
                     
-                    val right = installed.firstOrNull { it.localId == entry.rightLocalId }
-                        ?: installed.firstOrNull { it.size == "half" }
-                        ?: installed.firstOrNull { it.localId == "com.example.builtin.clock" }
+                    val rightItem = resolveStandbyItem(context, entry.rightLocalId, installed)
+                        ?: resolveStandbyItem(context, defaultHalf, installed)
+                        ?: resolveStandbyItem(context, defaultFull, installed)
                     
-                    if (left != null && right != null) {
-                        pagesList.add(StandbyPage.HalfWidth(left, right, entry.pageId))
+                    if (leftItem != null && rightItem != null) {
+                        pagesList.add(StandbyPage.HalfWidth(leftItem, rightItem, entry.pageId))
                     }
                 }
             }
@@ -286,7 +308,44 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         val context = getApplication<Application>()
         ensureLayoutConfigExists(context)
         val layout = PluginManager.loadLayoutConfig(context).toMutableList()
+        val removed = layout.filter { it.pageId == pageId }
+        for (entry in removed) {
+            cleanupAppWidgetId(context, entry.pluginLocalId)
+            cleanupAppWidgetId(context, entry.leftLocalId)
+            cleanupAppWidgetId(context, entry.rightLocalId)
+        }
         layout.removeAll { it.pageId == pageId }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
+    }
+
+    private fun cleanupAppWidgetId(context: Context, localId: String?) {
+        if (localId != null && localId.startsWith("appwidget:")) {
+            val appWidgetId = localId.removePrefix("appwidget:").toIntOrNull()
+            if (appWidgetId != null) {
+                AppWidgetHostHelper.deleteAppWidgetId(context, appWidgetId)
+            }
+        }
+    }
+
+    fun updatePageSlotWithAppWidget(pageId: String, isLeft: Boolean?, appWidgetId: Int) {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val widgetLocalId = "appwidget:$appWidgetId"
+        val layout = PluginManager.loadLayoutConfig(context).map { entry ->
+            if (entry.pageId == pageId) {
+                if (isLeft == null || entry.type == "full") {
+                    cleanupAppWidgetId(context, entry.pluginLocalId)
+                    entry.copy(pluginLocalId = widgetLocalId)
+                } else if (isLeft) {
+                    cleanupAppWidgetId(context, entry.leftLocalId)
+                    entry.copy(leftLocalId = widgetLocalId)
+                } else {
+                    cleanupAppWidgetId(context, entry.rightLocalId)
+                    entry.copy(rightLocalId = widgetLocalId)
+                }
+            } else entry
+        }
         PluginManager.saveLayoutConfig(context, layout)
         rebuildStandbyPages()
     }
@@ -381,21 +440,23 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         val updatedPages = _standbyPages.value.map { page ->
             when (page) {
                 is StandbyPage.FullWidth -> {
-                    if (page.plugin.localId == pluginLocalId) {
+                    if (page.item is StandbyItem.Plugin && page.item.plugin.localId == pluginLocalId) {
                         val updatedPlugin = updatedList.first { it.localId == pluginLocalId }
-                        page.copy(plugin = updatedPlugin)
+                        page.copy(item = StandbyItem.Plugin(updatedPlugin))
                     } else page
                 }
                 is StandbyPage.HalfWidth -> {
-                    val newLeft = if (page.leftPlugin.localId == pluginLocalId) {
-                        updatedList.first { it.localId == pluginLocalId }
-                    } else page.leftPlugin
+                    val newLeftItem = if (page.leftItem is StandbyItem.Plugin && page.leftItem.plugin.localId == pluginLocalId) {
+                        val updatedPlugin = updatedList.first { it.localId == pluginLocalId }
+                        StandbyItem.Plugin(updatedPlugin)
+                    } else page.leftItem
                     
-                    val newRight = if (page.rightPlugin.localId == pluginLocalId) {
-                        updatedList.first { it.localId == pluginLocalId }
-                    } else page.rightPlugin
+                    val newRightItem = if (page.rightItem is StandbyItem.Plugin && page.rightItem.plugin.localId == pluginLocalId) {
+                        val updatedPlugin = updatedList.first { it.localId == pluginLocalId }
+                        StandbyItem.Plugin(updatedPlugin)
+                    } else page.rightItem
                     
-                    page.copy(leftPlugin = newLeft, rightPlugin = newRight)
+                    page.copy(leftItem = newLeftItem, rightItem = newRightItem)
                 }
             }
         }

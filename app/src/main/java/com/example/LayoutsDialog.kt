@@ -48,6 +48,7 @@ fun LayoutsDialog(
     onUpdatePageSlotType: (String, String) -> Unit, // page id, type
     onDeletePlugin: (String) -> Unit, // delete plugin callback
     onImportPluginClick: () -> Unit,
+    onPickAppWidget: (pageId: String, isLeft: Boolean?) -> Unit = { _, _ -> },
     onDismissRequest: () -> Unit
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
@@ -145,7 +146,8 @@ fun LayoutsDialog(
                         onMovePageSlot = onMovePageSlot,
                         onUpdatePageSlotPlugin = onUpdatePageSlotPlugin,
                         onUpdatePageSlotFull = onUpdatePageSlotFull,
-                        onUpdatePageSlotType = onUpdatePageSlotType
+                        onUpdatePageSlotType = onUpdatePageSlotType,
+                        onPickAppWidget = onPickAppWidget
                     )
                 } else {
                     // widgets library tab
@@ -169,7 +171,8 @@ fun ConfigureLayoutsTab(
     onMovePageSlot: (Int, Int) -> Unit,
     onUpdatePageSlotPlugin: (String, Boolean, String) -> Unit,
     onUpdatePageSlotFull: (String, String) -> Unit,
-    onUpdatePageSlotType: (String, String) -> Unit
+    onUpdatePageSlotType: (String, String) -> Unit,
+    onPickAppWidget: (String, Boolean?) -> Unit = { _, _ -> }
 ) {
     val lazyListState = rememberLazyListState()
     var previousSize by remember { mutableStateOf(standbyPages.size) }
@@ -352,10 +355,14 @@ fun ConfigureLayoutsTab(
                                             val fullOptions = plugins.filter { it.isBuiltIn || it.size == "full" }
                                             PluginDropdown(
                                                 label = "",
-                                                selectedPluginId = page.plugin.localId,
+                                                selectedItemId = page.item.localId,
+                                                selectedItemName = page.item.displayName,
                                                 plugins = fullOptions,
                                                 onPluginSelected = { newId ->
                                                     onUpdatePageSlotFull(page.pageId, newId)
+                                                },
+                                                onPickAppWidget = {
+                                                    onPickAppWidget(page.pageId, null)
                                                 },
                                                 modifier = Modifier.fillMaxWidth()
                                             )
@@ -368,19 +375,27 @@ fun ConfigureLayoutsTab(
                                             ) {
                                                 PluginDropdown(
                                                     label = "",
-                                                    selectedPluginId = page.leftPlugin.localId,
+                                                    selectedItemId = page.leftItem.localId,
+                                                    selectedItemName = page.leftItem.displayName,
                                                     plugins = halfOptions,
                                                     onPluginSelected = { newId ->
                                                         onUpdatePageSlotPlugin(page.pageId, true, newId)
+                                                    },
+                                                    onPickAppWidget = {
+                                                        onPickAppWidget(page.pageId, true)
                                                     },
                                                     modifier = Modifier.weight(1f)
                                                 )
                                                 PluginDropdown(
                                                     label = "",
-                                                    selectedPluginId = page.rightPlugin.localId,
+                                                    selectedItemId = page.rightItem.localId,
+                                                    selectedItemName = page.rightItem.displayName,
                                                     plugins = halfOptions,
                                                     onPluginSelected = { newId ->
                                                         onUpdatePageSlotPlugin(page.pageId, false, newId)
+                                                    },
+                                                    onPickAppWidget = {
+                                                        onPickAppWidget(page.pageId, false)
                                                     },
                                                     modifier = Modifier.weight(1f)
                                                 )
@@ -541,14 +556,16 @@ fun WidgetsLibraryTab(
 @Composable
 fun PluginDropdown(
     label: String,
-    selectedPluginId: String,
+    selectedItemId: String,
+    selectedItemName: String? = null,
     plugins: List<PluginModel>,
     onPluginSelected: (String) -> Unit,
+    onPickAppWidget: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedPlugin = plugins.firstOrNull { it.localId == selectedPluginId }
-    val displayText = selectedPlugin?.name ?: "Select Widget"
+    val selectedPlugin = plugins.firstOrNull { it.localId == selectedItemId }
+    val displayText = selectedItemName ?: selectedPlugin?.name ?: "Select Widget"
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (label.isNotEmpty()) {
@@ -594,6 +611,33 @@ fun PluginDropdown(
                         onClick = {
                             onPluginSelected(plugin.localId)
                             expanded = false
+                        }
+                    )
+                }
+                if (onPickAppWidget != null) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Android App Widget...",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        },
+                        onClick = {
+                            expanded = false
+                            onPickAppWidget()
                         }
                     )
                 }

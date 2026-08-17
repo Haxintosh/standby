@@ -52,7 +52,7 @@ fun CustomizationDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = when (activePage) {
-                            is StandbyPage.FullWidth -> "Customize: ${activePage.plugin.name}"
+                            is StandbyPage.FullWidth -> "Customize: ${activePage.plugin?.name ?: "Widget"}"
                             is StandbyPage.HalfWidth -> "Customize Widgets"
                         },
                         style = MaterialTheme.typography.titleMedium,
@@ -74,13 +74,29 @@ fun CustomizationDialog(
             // content
             when (activePage) {
                 is StandbyPage.FullWidth -> {
-                    PluginCustomizationColumn(
-                        plugin = activePage.plugin,
-                        onCustomizationValueChange = onCustomizationValueChange,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    )
+                    val plugin = activePage.plugin
+                    if (plugin != null) {
+                        PluginCustomizationColumn(
+                            plugin = plugin,
+                            onCustomizationValueChange = onCustomizationValueChange,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Android App Widgets do not have web customization options.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
                 is StandbyPage.HalfWidth -> {
                     Row(
@@ -89,20 +105,53 @@ fun CustomizationDialog(
                             .fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        PluginCustomizationColumn(
-                            plugin = activePage.leftPlugin,
-                            onCustomizationValueChange = onCustomizationValueChange,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-                        PluginCustomizationColumn(
-                            plugin = activePage.rightPlugin,
-                            onCustomizationValueChange = onCustomizationValueChange,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
+                        val leftPlugin = activePage.leftPlugin
+                        if (leftPlugin != null) {
+                            PluginCustomizationColumn(
+                                plugin = leftPlugin,
+                                onCustomizationValueChange = onCustomizationValueChange,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Android App Widget (No customizations)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        val rightPlugin = activePage.rightPlugin
+                        if (rightPlugin != null) {
+                            PluginCustomizationColumn(
+                                plugin = rightPlugin,
+                                onCustomizationValueChange = onCustomizationValueChange,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Android App Widget (No customizations)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
