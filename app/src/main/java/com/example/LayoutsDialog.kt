@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,6 +49,8 @@ fun LayoutsDialog(
     onUpdatePageSlotType: (String, String) -> Unit, // page id, type
     onDeletePlugin: (String) -> Unit, // delete plugin callback
     onImportPluginClick: () -> Unit,
+    onRefreshWidgetsClick: () -> Unit = {},
+    onBrowseAppWidgetsClick: () -> Unit = {},
     onPickAppWidget: (pageId: String, isLeft: Boolean?) -> Unit = { _, _ -> },
     onDismissRequest: () -> Unit
 ) {
@@ -101,7 +104,7 @@ fun LayoutsDialog(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     FilledTonalButton(
                         onClick = onImportPluginClick,
@@ -116,6 +119,36 @@ fun LayoutsDialog(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Import Widget", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+
+                    FilledTonalButton(
+                        onClick = onBrowseAppWidgetsClick,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add App Widget", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+
+                    FilledTonalButton(
+                        onClick = onRefreshWidgetsClick,
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Refresh Widgets", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
 
                     IconButton(onClick = onDismissRequest) {
@@ -153,6 +186,7 @@ fun LayoutsDialog(
                     // widgets library tab
                     WidgetsLibraryTab(
                         plugins = plugins,
+                        onBrowseAppWidgetsClick = onBrowseAppWidgetsClick,
                         onDeletePlugin = onDeletePlugin
                     )
                 }
@@ -415,6 +449,7 @@ fun ConfigureLayoutsTab(
 @Composable
 fun WidgetsLibraryTab(
     plugins: List<PluginModel>,
+    onBrowseAppWidgetsClick: () -> Unit = {},
     onDeletePlugin: (String) -> Unit
 ) {
     Card(
@@ -431,12 +466,33 @@ fun WidgetsLibraryTab(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Installed Widgets Library",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Installed Widgets Library",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedButton(
+                    onClick = onBrowseAppWidgetsClick,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Browse Third-Party App Widgets", style = MaterialTheme.typography.labelMedium)
+                }
+            }
 
             // installed widgets list
             Column(

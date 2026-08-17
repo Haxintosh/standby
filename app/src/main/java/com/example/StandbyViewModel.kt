@@ -95,6 +95,33 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         triggerWeatherRefresh()
     }
 
+    fun refreshAllWidgets(context: Context) {
+        val current = _pluginRefreshTriggers.value.toMutableMap()
+        _plugins.value.forEach { plugin ->
+            current[plugin.localId] = System.currentTimeMillis()
+        }
+        _pluginRefreshTriggers.value = current
+        triggerWeatherRefresh()
+
+        _standbyPages.value.forEach { page ->
+            when (page) {
+                is StandbyPage.FullWidth -> {
+                    (page.item as? StandbyItem.NativeAppWidget)?.let { widgetItem ->
+                        refreshNativeAppWidget(context, widgetItem.appWidgetId, widgetItem.providerInfo.provider)
+                    }
+                }
+                is StandbyPage.HalfWidth -> {
+                    (page.leftItem as? StandbyItem.NativeAppWidget)?.let { widgetItem ->
+                        refreshNativeAppWidget(context, widgetItem.appWidgetId, widgetItem.providerInfo.provider)
+                    }
+                    (page.rightItem as? StandbyItem.NativeAppWidget)?.let { widgetItem ->
+                        refreshNativeAppWidget(context, widgetItem.appWidgetId, widgetItem.providerInfo.provider)
+                    }
+                }
+            }
+        }
+    }
+
     fun refreshNativeAppWidget(context: Context, appWidgetId: Int, provider: ComponentName) {
         try {
             val updateIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).apply {
@@ -370,6 +397,39 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
                     entry.copy(rightLocalId = widgetLocalId)
                 }
             } else entry
+        }
+        PluginManager.saveLayoutConfig(context, layout)
+        rebuildStandbyPages()
+    }
+
+    fun addPageSlotWithAppWidget(appWidgetId: Int, type: String = "full") {
+        val context = getApplication<Application>()
+        ensureLayoutConfigExists(context)
+        val layout = PluginManager.loadLayoutConfig(context).toMutableList()
+        val widgetLocalId = "appwidget:$appWidgetId"
+
+        if (type == "full") {
+            layout.add(
+                PluginManager.LayoutEntry(
+                    type = "full",
+                    pluginLocalId = widgetLocalId,
+                    leftLocalId = null,
+                    rightLocalId = null,
+                    pageId = java.util.UUID.randomUUID().toString()
+                )
+            )
+        } else {
+            val installed = _plugins.value
+            val defaultHalf = installed.firstOrNull { it.size == "half" }?.localId ?: "com.example.builtin.clock"
+            layout.add(
+                PluginManager.LayoutEntry(
+                    type = "half",
+                    pluginLocalId = null,
+                    leftLocalId = widgetLocalId,
+                    rightLocalId = defaultHalf,
+                    pageId = java.util.UUID.randomUUID().toString()
+                )
+            )
         }
         PluginManager.saveLayoutConfig(context, layout)
         rebuildStandbyPages()

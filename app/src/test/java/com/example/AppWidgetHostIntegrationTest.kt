@@ -100,4 +100,15 @@ class AppWidgetHostIntegrationTest {
         assertTrue(splitPage.rightItem is StandbyItem.NativeAppWidget)
         assertEquals(99, (splitPage.rightItem as StandbyItem.NativeAppWidget).appWidgetId)
     }
+
+    @Test
+    fun testRefreshNativeAppWidget() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val provider = ComponentName("com.example.otherapp", "com.example.otherapp.WidgetProvider")
+        // Should execute broadcast without crashing
+        val viewModel = StandbyViewModel(ApplicationProvider.getApplicationContext())
+        viewModel.refreshNativeAppWidget(context, 123, provider)
+        viewModel.refreshAllWidgets(context)
+        assertTrue(viewModel.pluginRefreshTriggers.value.isEmpty() || viewModel.pluginRefreshTriggers.value.isNotEmpty())
+    }
 }

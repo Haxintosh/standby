@@ -222,8 +222,12 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     ) { result ->
         val widgetId = pendingConfigAppWidgetId
         val slot = pendingAppWidgetSlot
-        if (result.resultCode == Activity.RESULT_OK && widgetId != null && slot != null) {
-            viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+        if (result.resultCode == Activity.RESULT_OK && widgetId != null) {
+            if (slot != null) {
+                viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+            } else {
+                viewModel.addPageSlotWithAppWidget(widgetId, "full")
+            }
         } else if (widgetId != null) {
             AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
         }
@@ -238,7 +242,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         val widgetId = pendingConfigAppWidgetId
         val provider = pendingConfigProvider
         val slot = pendingAppWidgetSlot
-        if (result.resultCode == Activity.RESULT_OK && widgetId != null && provider != null && slot != null) {
+        if (result.resultCode == Activity.RESULT_OK && widgetId != null && provider != null) {
             if (provider.configure != null) {
                 val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
                     component = provider.configure
@@ -246,7 +250,11 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 }
                 configLauncher.launch(configIntent)
             } else {
-                viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                if (slot != null) {
+                    viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                } else {
+                    viewModel.addPageSlotWithAppWidget(widgetId, "full")
+                }
                 pendingConfigAppWidgetId = null
                 pendingConfigProvider = null
                 pendingAppWidgetSlot = null
@@ -626,6 +634,11 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 },
                 onDeletePlugin = { localId -> viewModel.deletePlugin(localId) },
                 onImportPluginClick = { filePickerLauncher.launch("*/*") },
+                onRefreshWidgetsClick = { viewModel.refreshAllWidgets(context) },
+                onBrowseAppWidgetsClick = {
+                    pendingAppWidgetSlot = null
+                    showAppWidgetPicker = true
+                },
                 onPickAppWidget = { pageId, isLeft ->
                     pendingAppWidgetSlot = Pair(pageId, isLeft)
                     showAppWidgetPicker = true
@@ -643,30 +656,32 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             AppWidgetPickerDialog(
                 onSelectProvider = { provider ->
                     showAppWidgetPicker = false
-                    val slot = pendingAppWidgetSlot
-                    if (slot != null) {
-                        val appWidgetId = AppWidgetHostHelper.allocateAppWidgetId(context)
-                        val bound = AppWidgetHostHelper.bindAppWidgetIdIfAllowed(context, appWidgetId, provider.provider)
-                        if (!bound) {
-                            pendingConfigAppWidgetId = appWidgetId
-                            pendingConfigProvider = provider
-                            val bindIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
-                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
-                            }
-                            bindLauncher.launch(bindIntent)
-                        } else if (provider.configure != null) {
-                            pendingConfigAppWidgetId = appWidgetId
-                            pendingConfigProvider = provider
-                            val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                                component = provider.configure
-                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                            }
-                            configLauncher.launch(configIntent)
-                        } else {
-                            viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, appWidgetId)
-                            pendingAppWidgetSlot = null
+                    val appWidgetId = AppWidgetHostHelper.allocateAppWidgetId(context)
+                    val bound = AppWidgetHostHelper.bindAppWidgetIdIfAllowed(context, appWidgetId, provider.provider)
+                    if (!bound) {
+                        pendingConfigAppWidgetId = appWidgetId
+                        pendingConfigProvider = provider
+                        val bindIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
                         }
+                        bindLauncher.launch(bindIntent)
+                    } else if (provider.configure != null) {
+                        pendingConfigAppWidgetId = appWidgetId
+                        pendingConfigProvider = provider
+                        val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                            component = provider.configure
+                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                        }
+                        configLauncher.launch(configIntent)
+                    } else {
+                        val slot = pendingAppWidgetSlot
+                        if (slot != null) {
+                            viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, appWidgetId)
+                        } else {
+                            viewModel.addPageSlotWithAppWidget(appWidgetId, "full")
+                        }
+                        pendingAppWidgetSlot = null
                     }
                 },
                 onDismissRequest = {
