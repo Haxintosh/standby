@@ -122,21 +122,6 @@ fun LayoutsDialog(
                     }
 
                     FilledTonalButton(
-                        onClick = onBrowseAppWidgetsClick,
-                        shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add App Widget", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    }
-
-                    FilledTonalButton(
                         onClick = onRefreshWidgetsClick,
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
