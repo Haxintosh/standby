@@ -51,7 +51,33 @@ object AppWidgetHostHelper {
 
     fun getInstalledProviders(context: Context): List<AppWidgetProviderInfo> {
         val manager = AppWidgetManager.getInstance(context)
-        return manager.installedProviders ?: emptyList()
+        val list = mutableListOf<AppWidgetProviderInfo>()
+
+        try {
+            val standardList = manager.installedProviders
+            if (standardList != null) {
+                list.addAll(standardList)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching standard installedProviders", e)
+        }
+
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+                val userManager = context.getSystemService(Context.USER_SERVICE) as? android.os.UserManager
+                val profiles = userManager?.userProfiles ?: listOf(android.os.Process.myUserHandle())
+                for (profile in profiles) {
+                    val profileProviders = manager.getInstalledProvidersForProfile(profile)
+                    if (profileProviders != null) {
+                        list.addAll(profileProviders)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching profile providers", e)
+        }
+
+        return list.distinctBy { "${it.provider.packageName}/${it.provider.className}" }
     }
 
     fun getAppWidgetInfo(context: Context, appWidgetId: Int): AppWidgetProviderInfo? {

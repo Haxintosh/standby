@@ -57,12 +57,28 @@ fun AppWidgetPickerDialog(
             } catch (e: Exception) {
                 null
             }
-            val appName = appInfo?.let { pm.getApplicationLabel(it).toString() } ?: provider.provider.packageName
-            val widgetLabel = provider.loadLabel(pm) ?: appName
-            val appIcon = appInfo?.loadIcon(pm)
-            val previewImage = provider.loadPreviewImage(context, 0) ?: provider.loadIcon(context, 0)
-            val minWidthDp = (provider.minWidth / density).toInt()
-            val minHeightDp = (provider.minHeight / density).toInt()
+            val appName = try {
+                appInfo?.let { pm.getApplicationLabel(it).toString() } ?: provider.provider.packageName
+            } catch (e: Exception) {
+                provider.provider.packageName
+            }
+            val widgetLabel = try {
+                provider.loadLabel(pm) ?: appName
+            } catch (e: Exception) {
+                appName
+            }
+            val appIcon = try {
+                appInfo?.loadIcon(pm)
+            } catch (e: Exception) {
+                null
+            }
+            val previewImage = try {
+                provider.loadPreviewImage(context, 0) ?: provider.loadIcon(context, 0)
+            } catch (e: Exception) {
+                null
+            }
+            val minWidthDp = try { (provider.minWidth / density).toInt() } catch (e: Exception) { 0 }
+            val minHeightDp = try { (provider.minHeight / density).toInt() } catch (e: Exception) { 0 }
 
             AppWidgetDisplayItem(
                 providerInfo = provider,
