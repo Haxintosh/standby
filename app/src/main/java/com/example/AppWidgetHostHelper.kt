@@ -98,4 +98,24 @@ object AppWidgetHostHelper {
             false
         }
     }
+
+    fun startAppWidgetConfigure(
+        activity: android.app.Activity,
+        appWidgetId: Int,
+        requestCode: Int
+    ): Boolean {
+        return try {
+            getHost(activity).startAppWidgetConfigureActivityForResult(
+                activity,
+                appWidgetId,
+                0,
+                requestCode,
+                null
+            )
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start AppWidget configure activity for id $appWidgetId", e)
+            false
+        }
+    }
 }

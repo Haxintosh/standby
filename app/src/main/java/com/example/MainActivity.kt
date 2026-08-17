@@ -58,6 +58,34 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        const val REQUEST_BIND_APPWIDGET = 2001
+        const val REQUEST_CONFIGURE_APPWIDGET = 2002
+    }
+
+    private var appWidgetResultListener: ((requestCode: Int, resultCode: Int, data: Intent?) -> Unit)? = null
+
+    fun setAppWidgetResultListener(listener: ((requestCode: Int, resultCode: Int, data: Intent?) -> Unit)?) {
+        this.appWidgetResultListener = listener
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        appWidgetResultListener?.invoke(requestCode, resultCode, data)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        AppWidgetHostHelper.startListening(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AppWidgetHostHelper.stopListening()
+    }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     
@@ -205,12 +233,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     
     // AppWidgetHost management
     val appWidgetHost = remember(context) { AppWidgetHostHelper.getHost(context) }
-    DisposableEffect(Unit) {
-        AppWidgetHostHelper.startListening(context)
-        onDispose {
-            AppWidgetHostHelper.stopListening()
-        }
-    }
+    val activity = context as? Activity
+    val mainActivity = activity as? MainActivity
 
     var showAppWidgetPicker by remember { mutableStateOf(false) }
     var pendingAppWidgetSlot by remember { mutableStateOf<Pair<String, Boolean?>?>(null) } // pageId, isLeft
@@ -218,65 +242,67 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     var pendingConfigProvider by remember { mutableStateOf<AppWidgetProviderInfo?>(null) }
     var selectedAppWidgetForInfo by remember { mutableStateOf<StandbyItem.NativeAppWidget?>(null) }
 
-    val configLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val widgetId = pendingConfigAppWidgetId
-        val slot = pendingAppWidgetSlot
-        if (result.resultCode == Activity.RESULT_OK && widgetId != null) {
-            if (slot != null) {
-                viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
-            } else {
-                viewModel.addPageSlotWithAppWidget(widgetId, "full")
-            }
-        } else if (widgetId != null) {
-            AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
-        }
-        pendingConfigAppWidgetId = null
-        pendingConfigProvider = null
-        pendingAppWidgetSlot = null
-    }
-
-    val bindLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val widgetId = pendingConfigAppWidgetId
-        val provider = pendingConfigProvider
-        val slot = pendingAppWidgetSlot
-        if (result.resultCode == Activity.RESULT_OK && widgetId != null && provider != null) {
-            if (provider.configure != null) {
-                val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                    component = provider.configure
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+    DisposableEffect(mainActivity) {
+        mainActivity?.setAppWidgetResultListener { requestCode, resultCode, _ ->
+            when (requestCode) {
+                MainActivity.REQUEST_BIND_APPWIDGET -> {
+                    val widgetId = pendingConfigAppWidgetId
+                    val provider = pendingConfigProvider
+                    val slot = pendingAppWidgetSlot
+                    if (resultCode == Activity.RESULT_OK && widgetId != null && provider != null) {
+                        if (provider.configure != null && activity != null) {
+                            val launched = AppWidgetHostHelper.startAppWidgetConfigure(
+                                activity,
+                                widgetId,
+                                MainActivity.REQUEST_CONFIGURE_APPWIDGET
+                            )
+                            if (!launched) {
+                                if (slot != null) {
+                                    viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                                } else {
+                                    viewModel.addPageSlotWithAppWidget(widgetId, "full")
+                                }
+                                pendingConfigAppWidgetId = null
+                                pendingConfigProvider = null
+                                pendingAppWidgetSlot = null
+                            }
+                        } else {
+                            if (slot != null) {
+                                viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                            } else {
+                                viewModel.addPageSlotWithAppWidget(widgetId, "full")
+                            }
+                            pendingConfigAppWidgetId = null
+                            pendingConfigProvider = null
+                            pendingAppWidgetSlot = null
+                        }
+                    } else if (widgetId != null) {
+                        AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
+                        pendingConfigAppWidgetId = null
+                        pendingConfigProvider = null
+                        pendingAppWidgetSlot = null
+                    }
                 }
-                try {
-                    configLauncher.launch(configIntent)
-                } catch (e: Exception) {
-                    Log.w("MainActivity", "Configure activity could not be launched for $provider, directly applying widget", e)
-                    if (slot != null) {
-                        viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
-                    } else {
-                        viewModel.addPageSlotWithAppWidget(widgetId, "full")
+                MainActivity.REQUEST_CONFIGURE_APPWIDGET -> {
+                    val widgetId = pendingConfigAppWidgetId
+                    val slot = pendingAppWidgetSlot
+                    if (resultCode == Activity.RESULT_OK && widgetId != null) {
+                        if (slot != null) {
+                            viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
+                        } else {
+                            viewModel.addPageSlotWithAppWidget(widgetId, "full")
+                        }
+                    } else if (widgetId != null) {
+                        AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
                     }
                     pendingConfigAppWidgetId = null
                     pendingConfigProvider = null
                     pendingAppWidgetSlot = null
                 }
-            } else {
-                if (slot != null) {
-                    viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, widgetId)
-                } else {
-                    viewModel.addPageSlotWithAppWidget(widgetId, "full")
-                }
-                pendingConfigAppWidgetId = null
-                pendingConfigProvider = null
-                pendingAppWidgetSlot = null
             }
-        } else if (widgetId != null) {
-            AppWidgetHostHelper.deleteAppWidgetId(context, widgetId)
-            pendingConfigAppWidgetId = null
-            pendingConfigProvider = null
-            pendingAppWidgetSlot = null
+        }
+        onDispose {
+            mainActivity?.setAppWidgetResultListener(null)
         }
     }
 
@@ -648,10 +674,6 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 onDeletePlugin = { localId -> viewModel.deletePlugin(localId) },
                 onImportPluginClick = { filePickerLauncher.launch("*/*") },
                 onRefreshWidgetsClick = { viewModel.refreshAllWidgets(context) },
-                onBrowseAppWidgetsClick = {
-                    pendingAppWidgetSlot = null
-                    showAppWidgetPicker = true
-                },
                 onPickAppWidget = { pageId, isLeft ->
                     pendingAppWidgetSlot = Pair(pageId, isLeft)
                     showAppWidgetPicker = true
@@ -678,25 +700,26 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                             putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
                         }
-                        try {
-                            bindLauncher.launch(bindIntent)
-                        } catch (e: Exception) {
-                            Log.e("MainActivity", "Failed to launch bind intent", e)
-                            AppWidgetHostHelper.deleteAppWidgetId(context, appWidgetId)
-                            pendingConfigAppWidgetId = null
-                            pendingConfigProvider = null
+                        if (activity != null) {
+                            try {
+                                @Suppress("DEPRECATION")
+                                activity.startActivityForResult(bindIntent, MainActivity.REQUEST_BIND_APPWIDGET)
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", "Failed to launch bind intent", e)
+                                AppWidgetHostHelper.deleteAppWidgetId(context, appWidgetId)
+                                pendingConfigAppWidgetId = null
+                                pendingConfigProvider = null
+                            }
                         }
-                    } else if (provider.configure != null) {
+                    } else if (provider.configure != null && activity != null) {
                         pendingConfigAppWidgetId = appWidgetId
                         pendingConfigProvider = provider
-                        val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                            component = provider.configure
-                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                        }
-                        try {
-                            configLauncher.launch(configIntent)
-                        } catch (e: Exception) {
-                            Log.w("MainActivity", "Configure activity could not be launched for $provider, directly applying widget", e)
+                        val launched = AppWidgetHostHelper.startAppWidgetConfigure(
+                            activity,
+                            appWidgetId,
+                            MainActivity.REQUEST_CONFIGURE_APPWIDGET
+                        )
+                        if (!launched) {
                             val slot = pendingAppWidgetSlot
                             if (slot != null) {
                                 viewModel.updatePageSlotWithAppWidget(slot.first, slot.second, appWidgetId)
@@ -775,17 +798,13 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                             provider = widgetItem.providerInfo.provider
                         )
                     },
-                    onConfigureWidget = if (widgetItem.providerInfo.configure != null) {
+                    onConfigureWidget = if (widgetItem.providerInfo.configure != null && activity != null) {
                         {
-                            try {
-                                val configIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                                    component = widgetItem.providerInfo.configure
-                                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetItem.appWidgetId)
-                                }
-                                context.startActivity(configIntent)
-                            } catch (e: Exception) {
-                                Log.w("MainActivity", "Failed to launch widget configuration activity", e)
-                            }
+                            AppWidgetHostHelper.startAppWidgetConfigure(
+                                activity,
+                                widgetItem.appWidgetId,
+                                MainActivity.REQUEST_CONFIGURE_APPWIDGET
+                            )
                         }
                     } else null,
                     onDismissRequest = { selectedAppWidgetForInfo = null }

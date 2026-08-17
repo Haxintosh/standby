@@ -47,6 +47,10 @@ fun AppWidgetView(
                     }
 
                     appWidgetHost.createView(context, appWidgetId, providerInfo).apply {
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
                         setAppWidget(appWidgetId, providerInfo)
                         try {
                             updateAppWidgetSize(options, widthDp, heightDp, widthDp, heightDp)

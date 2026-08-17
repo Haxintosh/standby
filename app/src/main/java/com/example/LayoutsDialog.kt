@@ -50,7 +50,6 @@ fun LayoutsDialog(
     onDeletePlugin: (String) -> Unit, // delete plugin callback
     onImportPluginClick: () -> Unit,
     onRefreshWidgetsClick: () -> Unit = {},
-    onBrowseAppWidgetsClick: () -> Unit = {},
     onPickAppWidget: (pageId: String, isLeft: Boolean?) -> Unit = { _, _ -> },
     onDismissRequest: () -> Unit
 ) {
@@ -171,7 +170,6 @@ fun LayoutsDialog(
                     // widgets library tab
                     WidgetsLibraryTab(
                         plugins = plugins,
-                        onBrowseAppWidgetsClick = onBrowseAppWidgetsClick,
                         onDeletePlugin = onDeletePlugin
                     )
                 }
@@ -434,7 +432,6 @@ fun ConfigureLayoutsTab(
 @Composable
 fun WidgetsLibraryTab(
     plugins: List<PluginModel>,
-    onBrowseAppWidgetsClick: () -> Unit = {},
     onDeletePlugin: (String) -> Unit
 ) {
     Card(
@@ -451,33 +448,12 @@ fun WidgetsLibraryTab(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Installed Widgets Library",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                OutlinedButton(
-                    onClick = onBrowseAppWidgetsClick,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Browse Third-Party App Widgets", style = MaterialTheme.typography.labelMedium)
-                }
-            }
+            Text(
+                text = "Installed Widgets Library",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
 
             // installed widgets list
             Column(
