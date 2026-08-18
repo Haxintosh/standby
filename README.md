@@ -1,4 +1,4 @@
-![image of an analog clock next to a monthly calendar](img/half_plugin.png)
+![image of an analog clock next to a monthly calendar](img/standby_hero.png)
 
 # Standby
 > [!IMPORTANT]
@@ -11,6 +11,15 @@
 Unlike similar standby mode apps on the Play Store, Standby is 100% open-source, has no ads, and does not lock core features (like layouts or settings) behind paywalls.  
 
 Most importantly, it is fully extensible via HTML/CSS/JS instead of forcing you to choose from a fixed set of built-in templates. This allows you to build, customize, or modify your own widgets.
+
+--- 
+
+## Installation
+
+1. **Download the APK**: Download the latest `.apk` from the [GitHub Releases](https://github.com/Haxintosh/standby/releases)  
+2. **Install**: Tap the downloaded APK file and select `Install`.
+3. **Allow Installation**: If needed, allow your browser or file manager to install apps from unknown sources (*Settings > Apps > Special app access > Install unknown apps*).
+4. **Import Plugins**: Launch Standby, tap on the settings menu to enable the local upload server or load plugins from [`plugins/build/`](plugins/build/).
 
 ---
 
@@ -61,17 +70,21 @@ Here is a visual overview of how the plugins render and interact with the Standb
   ![Side-by-side widget layout](img/half_plugin.png)
 * **Full Screen**: Render a single widget spanning the entire screen.
   ![Full-screen widget layout](img/fullscreen_plugin.png)
-* **Third-Party Android App Widgets**: Native app widgets (GitHub in this case)
-  ![Native Android app widget support](img/app_widget_example.png)
 
 ### Example Widgets
 * **Battery Stats**: Queries local metrics via `window.AndroidSensors` to draw live charge current and voltage charts.
   ![Battery stats monitor widget](img/battery_stats.png)
 * **Weather Info**: Integration with the `window.AndroidProviders` local weather cache.
   ![Weather and clock widget](img/clock_weather.png)
+* **Bad Apple**: Bad Apple. 
+  ![Bad Apple ASCII](img/bad_apple.png)
+* **3rd party widgets**:
+  ![material clock](img/pixel_clock.png)
+  ![github contributions widget](img/app_widget_example.png)
 * **Other clocks**:
   ![Customizable color clock](img/colorful_clock.png)
   ![Elongated typography clock](img/elongated_clock.png)
+  ![2 clocks side by side](img/side_clocks.png)
 
 ### Controls, Settings & Screen Safety
 * **In-App Customizations**: Edit colors, thresholds, or switches declared in `customization.json`.
@@ -80,6 +93,13 @@ Here is a visual overview of how the plugins render and interact with the Standb
   ![Night mode configuration](img/night_mode_setting.png)
 * **Active OLED Burn-In Mask**: The overlay pattern that cycles pixels to avoid screen retention.
   ![Shifting subpixel protection pattern overlay](img/oled_burn_example.png)
+
+---
+
+## Permissions
+* **`INTERNET`**: Allow web plugins to fetch online data and to run the local plugin upload server.
+* **`VIBRATE`**: Powers tactile haptic feedback.
+* **`QUERY_ALL_PACKAGES` / AppWidget Queries**: Required by Android's `AppWidgetHost` to discover, configure, and embed native app widgets.
 
 ---
 
