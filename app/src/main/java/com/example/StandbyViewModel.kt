@@ -68,6 +68,15 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         sharedPreferences.edit().putBoolean("confirm_plugin_import", enabled).apply()
     }
 
+    private val _appWidgetsEnabled = MutableStateFlow(sharedPreferences.getBoolean("app_widgets_enabled", true))
+    val appWidgetsEnabled: StateFlow<Boolean> = _appWidgetsEnabled.asStateFlow()
+
+    fun setAppWidgetsEnabled(enabled: Boolean) {
+        _appWidgetsEnabled.value = enabled
+        sharedPreferences.edit().putBoolean("app_widgets_enabled", enabled).apply()
+        rebuildStandbyPages()
+    }
+
     val providerManager = ProviderManager(application)
 
     private val _weatherLat = MutableStateFlow(sharedPreferences.getString("weather_lat", "52.52") ?: "52.52")
@@ -199,12 +208,13 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     private fun resolveStandbyItem(context: Context, localId: String?, installed: List<PluginModel>): StandbyItem? {
         if (localId.isNullOrBlank()) return null
         if (localId.startsWith("appwidget:")) {
+            if (!_appWidgetsEnabled.value) return null
             val appWidgetId = localId.removePrefix("appwidget:").toIntOrNull()
             if (appWidgetId != null) {
                 val providerInfo = AppWidgetHostHelper.getAppWidgetInfo(context, appWidgetId)
                 if (providerInfo != null) {
                     val pm = context.packageManager
-                    val label = providerInfo.loadLabel(pm)?.toString() ?: "Android Widget"
+                    val label = try { providerInfo.loadLabel(pm)?.toString() } catch (e: Exception) { null } ?: "Android Widget"
                     val pkgName = providerInfo.provider.packageName
                     return StandbyItem.NativeAppWidget(appWidgetId, providerInfo, label, pkgName)
                 }

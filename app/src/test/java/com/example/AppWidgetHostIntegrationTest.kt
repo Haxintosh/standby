@@ -111,4 +111,16 @@ class AppWidgetHostIntegrationTest {
         viewModel.refreshAllWidgets(context)
         assertTrue(viewModel.pluginRefreshTriggers.value.isEmpty() || viewModel.pluginRefreshTriggers.value.isNotEmpty())
     }
+
+    @Test
+    fun testMasterSwitchAppWidgetsEnabled() {
+        val viewModel = StandbyViewModel(ApplicationProvider.getApplicationContext())
+        assertTrue(viewModel.appWidgetsEnabled.value)
+
+        viewModel.setAppWidgetsEnabled(false)
+        assertFalse(viewModel.appWidgetsEnabled.value)
+
+        viewModel.setAppWidgetsEnabled(true)
+        assertTrue(viewModel.appWidgetsEnabled.value)
+    }
 }

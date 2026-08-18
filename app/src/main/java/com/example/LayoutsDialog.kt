@@ -50,6 +50,7 @@ fun LayoutsDialog(
     onDeletePlugin: (String) -> Unit, // delete plugin callback
     onImportPluginClick: () -> Unit,
     onRefreshWidgetsClick: () -> Unit = {},
+    appWidgetsEnabled: Boolean = true,
     onPickAppWidget: (pageId: String, isLeft: Boolean?) -> Unit = { _, _ -> },
     onDismissRequest: () -> Unit
 ) {
@@ -164,6 +165,7 @@ fun LayoutsDialog(
                         onUpdatePageSlotPlugin = onUpdatePageSlotPlugin,
                         onUpdatePageSlotFull = onUpdatePageSlotFull,
                         onUpdatePageSlotType = onUpdatePageSlotType,
+                        appWidgetsEnabled = appWidgetsEnabled,
                         onPickAppWidget = onPickAppWidget
                     )
                 } else {
@@ -189,6 +191,7 @@ fun ConfigureLayoutsTab(
     onUpdatePageSlotPlugin: (String, Boolean, String) -> Unit,
     onUpdatePageSlotFull: (String, String) -> Unit,
     onUpdatePageSlotType: (String, String) -> Unit,
+    appWidgetsEnabled: Boolean = true,
     onPickAppWidget: (String, Boolean?) -> Unit = { _, _ -> }
 ) {
     val lazyListState = rememberLazyListState()
@@ -378,9 +381,9 @@ fun ConfigureLayoutsTab(
                                                 onPluginSelected = { newId ->
                                                     onUpdatePageSlotFull(page.pageId, newId)
                                                 },
-                                                onPickAppWidget = {
-                                                    onPickAppWidget(page.pageId, null)
-                                                },
+                                                onPickAppWidget = if (appWidgetsEnabled) {
+                                                    { onPickAppWidget(page.pageId, null) }
+                                                } else null,
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                         }
@@ -398,9 +401,9 @@ fun ConfigureLayoutsTab(
                                                     onPluginSelected = { newId ->
                                                         onUpdatePageSlotPlugin(page.pageId, true, newId)
                                                     },
-                                                    onPickAppWidget = {
-                                                        onPickAppWidget(page.pageId, true)
-                                                    },
+                                                    onPickAppWidget = if (appWidgetsEnabled) {
+                                                        { onPickAppWidget(page.pageId, true) }
+                                                    } else null,
                                                     modifier = Modifier.weight(1f)
                                                 )
                                                 PluginDropdown(
@@ -411,9 +414,9 @@ fun ConfigureLayoutsTab(
                                                     onPluginSelected = { newId ->
                                                         onUpdatePageSlotPlugin(page.pageId, false, newId)
                                                     },
-                                                    onPickAppWidget = {
-                                                        onPickAppWidget(page.pageId, false)
-                                                    },
+                                                    onPickAppWidget = if (appWidgetsEnabled) {
+                                                        { onPickAppWidget(page.pageId, false) }
+                                                    } else null,
                                                     modifier = Modifier.weight(1f)
                                                 )
                                             }

@@ -127,6 +127,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val isServerRunning by viewModel.isServerRunning.collectAsState()
     val pendingImport by viewModel.pendingImport.collectAsState()
     val confirmImportEnabled by viewModel.confirmImportEnabled.collectAsState()
+    val appWidgetsEnabled by viewModel.appWidgetsEnabled.collectAsState()
     
     val burnInProtectionEnabled by viewModel.burnInProtectionEnabled.collectAsState()
     val delayAfterInteraction by viewModel.delayAfterInteraction.collectAsState()
@@ -235,6 +236,14 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val appWidgetHost = remember(context) { AppWidgetHostHelper.getHost(context) }
     val activity = context as? Activity
     val mainActivity = activity as? MainActivity
+
+    LaunchedEffect(appWidgetsEnabled) {
+        if (appWidgetsEnabled) {
+            AppWidgetHostHelper.startListening(context)
+        } else {
+            AppWidgetHostHelper.stopListening()
+        }
+    }
 
     var showAppWidgetPicker by remember { mutableStateOf(false) }
     var pendingAppWidgetSlot by remember { mutableStateOf<Pair<String, Boolean?>?>(null) } // pageId, isLeft
@@ -607,6 +616,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 supportedRefreshRates = supportedRefreshRates,
                 confirmImportEnabled = confirmImportEnabled,
                 onConfirmImportEnabledChange = { viewModel.setConfirmImportEnabled(it) },
+                appWidgetsEnabled = appWidgetsEnabled,
+                onAppWidgetsEnabledChange = { viewModel.setAppWidgetsEnabled(it) },
                 weatherLat = weatherLat,
                 weatherLon = weatherLon,
                 weatherCity = weatherCity,
@@ -671,6 +682,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 onUpdatePageSlotType = { pageId, type ->
                     viewModel.updatePageSlotType(pageId, type)
                 },
+                appWidgetsEnabled = appWidgetsEnabled,
                 onDeletePlugin = { localId -> viewModel.deletePlugin(localId) },
                 onImportPluginClick = { filePickerLauncher.launch("*/*") },
                 onRefreshWidgetsClick = { viewModel.refreshAllWidgets(context) },

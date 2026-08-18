@@ -49,6 +49,8 @@ fun SettingsDialog(
     supportedRefreshRates: List<Int>,
     confirmImportEnabled: Boolean,
     onConfirmImportEnabledChange: (Boolean) -> Unit,
+    appWidgetsEnabled: Boolean,
+    onAppWidgetsEnabledChange: (Boolean) -> Unit,
     weatherLat: String,
     weatherLon: String,
     weatherCity: String,
@@ -145,7 +147,9 @@ fun SettingsDialog(
                         onLowRefreshRateValueChange = onLowRefreshRateValueChange,
                         supportedRefreshRates = supportedRefreshRates,
                         confirmImportEnabled = confirmImportEnabled,
-                        onConfirmImportEnabledChange = onConfirmImportEnabledChange
+                        onConfirmImportEnabledChange = onConfirmImportEnabledChange,
+                        appWidgetsEnabled = appWidgetsEnabled,
+                        onAppWidgetsEnabledChange = onAppWidgetsEnabledChange
                     )
                 } else {
                     ProviderSettingsTab(
@@ -186,7 +190,9 @@ fun GeneralSettingsTab(
     onLowRefreshRateValueChange: (Int) -> Unit,
     supportedRefreshRates: List<Int>,
     confirmImportEnabled: Boolean,
-    onConfirmImportEnabledChange: (Boolean) -> Unit
+    onConfirmImportEnabledChange: (Boolean) -> Unit,
+    appWidgetsEnabled: Boolean,
+    onAppWidgetsEnabledChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxSize(),
@@ -506,6 +512,43 @@ fun GeneralSettingsTab(
                             )
                         }
                     }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // app widgets
+                Text(
+                    text = "App Widgets",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Enable App Widgets",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Allows using native system and 3rd-party Android app widgets",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = appWidgetsEnabled,
+                        onCheckedChange = onAppWidgetsEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
                 }
             }
         }
@@ -899,6 +942,8 @@ fun SettingsDialogPreview() {
         supportedRefreshRates = listOf(60, 90, 120),
         confirmImportEnabled = true,
         onConfirmImportEnabledChange = {},
+        appWidgetsEnabled = true,
+        onAppWidgetsEnabledChange = {},
         weatherLat = "52.52",
         weatherLon = "13.41",
         weatherCity = "Berlin",
