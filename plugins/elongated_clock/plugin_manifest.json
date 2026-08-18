@@ -1,0 +1,12 @@
+{
+  "id": "com.example.elongated_clock",
+  "name": "Elongated clock",
+  "description": "Honestly I have no idea what to call this one",
+  "author": "honk",
+  "version": "1.0.0",
+  "size": "full",
+  "permissions": ["alarms"],
+  "providers": ["weather"],
+  "network_whitelist": [],
+  "min_app_version": 1
+}

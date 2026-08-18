@@ -1,0 +1,32 @@
+{
+  "accentColor": {
+    "type": "color",
+    "default": "#fb4c4c",
+    "target": "css",
+    "value": "#fb4c4c"
+  },
+  "bgColor": {
+    "type": "color",
+    "default": "#000000",
+    "target": "css",
+    "value": "#000000"
+  },
+  "textMain": {
+    "type": "color",
+    "default": "#ffffff",
+    "target": "css",
+    "value": "#ffffff"
+  },
+  "textDim": {
+    "type": "color",
+    "default": "#8c8c8c",
+    "target": "css",
+    "value": "#8c8c8c"
+  },
+  "isSundayStart": {
+    "type": "boolean",
+    "default": "true",
+    "target": "js",
+    "value": "true"
+  }
+}

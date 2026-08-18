@@ -1,0 +1,27 @@
+{
+  "color-hour-tens": {
+    "type": "color",
+    "default": "#c778d7",
+    "target": "css"
+  },
+  "color-hour-ones": {
+    "type": "color",
+    "default": "#e868b4",
+    "target": "css"
+  },
+  "color-min-tens": {
+    "type": "color",
+    "default": "#a688fa",
+    "target": "css"
+  },
+  "color-min-ones": {
+    "type": "color",
+    "default": "#a32db5",
+    "target": "css"
+  },
+  "twentyFourHour": {
+    "type": "boolean",
+    "default": "false",
+    "target": "js"
+  }
+}

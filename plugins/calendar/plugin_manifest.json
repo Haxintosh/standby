@@ -1,0 +1,11 @@
+{
+  "id": "com.example.calendar",
+  "name": "Calendar",
+  "description": "A minimal calendar plugin",
+  "author": "honk",
+  "version": "0.0.1",
+  "size": "half",
+  "permissions": [],
+  "network_whitelist": [],
+  "min_app_version": 1
+}

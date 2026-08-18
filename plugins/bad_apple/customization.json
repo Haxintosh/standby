@@ -1,0 +1,22 @@
+﻿{
+  "bg-color": {
+    "type": "color",
+    "default": "#000000",
+    "target": "css"
+  },
+  "char-color": {
+    "type": "color",
+    "default": "#ffffff",
+    "target": "css"
+  },
+  "invert": {
+    "type": "boolean",
+    "default": "false",
+    "target": "js"
+  },
+  "muted": {
+    "type": "boolean",
+    "default": "true",
+    "target": "js"
+  }
+}

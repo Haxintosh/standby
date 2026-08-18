@@ -1,0 +1,22 @@
+{
+  "bg-color": {
+    "type": "color",
+    "default": "#000000",
+    "target": "css"
+  },
+  "text-main": {
+    "type": "color",
+    "default": "#ffffff",
+    "target": "css"
+  },
+  "accent-color": {
+    "type": "color",
+    "default": "#8bb3f8",
+    "target": "css"
+  },
+  "twentyFourHour": {
+    "type": "boolean",
+    "default": "false",
+    "target": "js"
+  }
+}

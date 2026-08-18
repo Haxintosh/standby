@@ -1,0 +1,11 @@
+{
+  "id": "com.example.stocks",
+  "name": "Stocks example",
+  "description": "A stocks display plugin",
+  "author": "honk",
+  "version": "0.0.1",
+  "size": "half",
+  "permissions": [],
+  "network_whitelist": ["www.alphavantage.co"],
+  "min_app_version": 1
+}

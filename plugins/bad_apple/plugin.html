@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Apple ASCII</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --char-color: #ffffff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--char-color);
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+            font-family: 'Courier New', 'DejaVu Sans Mono', 'Consolas', monospace;
+        }
+
+        #ascii-display {
+            font-family: inherit;
+            font-weight: 700;
+            line-height: 0.62;
+            letter-spacing: 0;
+            margin: 0;
+            padding: 0;
+            white-space: pre;
+            text-align: center;
+            display: block;
+        }
+
+        #video, #hidden-canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <pre id="ascii-display">Loading Bad Apple...</pre>
+
+    <video id="video" src="assets/bad_apple.mp4" playsinline autoplay loop muted preload="auto"></video>
+    <canvas id="hidden-canvas"></canvas>
+
+    <script>
+        window.invert = false;
+        window.muted = true;
+
+        try {
+            if (window.AndroidSensors && typeof window.AndroidSensors.getCustomizations === 'function') {
+                const cust = JSON.parse(window.AndroidSensors.getCustomizations());
+                if (cust.invert !== undefined) {
+                    window.invert = (cust.invert === true || cust.invert === "true");
+                }
+                if (cust.muted !== undefined) {
+                    window.muted = (cust.muted === true || cust.muted === "true");
+                }
+            }
+        } catch (e) {}
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('hidden-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const pre = document.getElementById('ascii-display');
+
+        const RAMP = " .'^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@@";
+        const RAMP_LEN = RAMP.length;
+
+        const LINE_HEIGHT = 0.62;
+        const CHAR_WIDTH_RATIO = 0.60;
+
+        let cols = 64;
+        let rows = 48;
+
+        function updateDimensions() {
+            const vWidth = video.videoWidth || 640;
+            const vHeight = video.videoHeight || 480;
+            const videoRatio = vWidth / vHeight;
+
+            const vh = window.innerHeight;
+
+            // Target number of rows for crisp ASCII resolution
+            rows = 48;
+            // Calculate cols to maintain exact visual aspect ratio
+            cols = Math.round(rows * (LINE_HEIGHT / CHAR_WIDTH_RATIO) * videoRatio);
+
+            canvas.width = cols;
+            canvas.height = rows;
+
+            // Scale font-size so that rendered height occupies 100% of viewport height
+            const fontSize = vh / (rows * LINE_HEIGHT);
+            pre.style.fontSize = fontSize + 'px';
+            pre.style.lineHeight = LINE_HEIGHT;
+        }
+
+        video.muted = window.muted;
+
+        video.addEventListener('loadedmetadata', () => {
+            updateDimensions();
+        });
+
+        video.addEventListener('canplay', () => {
+            updateDimensions();
+        });
+
+        window.addEventListener('resize', () => {
+            updateDimensions();
+        });
+
+        window.addEventListener('orientationchange', () => {
+            updateDimensions();
+        });
+
+        // Ensure video is playing
+        function ensurePlaying() {
+            video.muted = window.muted;
+            if (video.paused) {
+                video.play().catch(() => {});
+            }
+        }
+
+        document.addEventListener('click', () => {
+            ensurePlaying();
+        });
+
+        function renderAscii() {
+            if (video.readyState >= 2 && !video.paused) {
+                ctx.drawImage(video, 0, 0, cols, rows);
+                const frameData = ctx.getImageData(0, 0, cols, rows).data;
+                
+                let asciiStr = '';
+                const inv = window.invert;
+
+                for (let y = 0; y < rows; y++) {
+                    const rowOffset = y * cols * 4;
+                    for (let x = 0; x < cols; x++) {
+                        const idx = rowOffset + x * 4;
+                        const r = frameData[idx];
+                        const g = frameData[idx + 1];
+                        const b = frameData[idx + 2];
+                        
+                        // Perceived brightness (luminance)
+                        let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+                        if (inv) {
+                            luma = 255 - luma;
+                        }
+
+                        const rampIdx = Math.floor((luma / 256) * RAMP_LEN);
+                        asciiStr += RAMP[rampIdx >= RAMP_LEN ? RAMP_LEN - 1 : rampIdx];
+                    }
+                    asciiStr += '\n';
+                }
+
+                pre.textContent = asciiStr;
+            }
+
+            requestAnimationFrame(renderAscii);
+        }
+
+        window.onCustomizationChanged = (changes) => {
+            if (changes.invert !== undefined) {
+                window.invert = (changes.invert === true || changes.invert === "true");
+            }
+            if (changes.muted !== undefined) {
+                window.muted = (changes.muted === true || changes.muted === "true");
+                video.muted = window.muted;
+            }
+        };
+
+        updateDimensions();
+        ensurePlaying();
+        requestAnimationFrame(renderAscii);
+    </script>
+</body>
+</html>

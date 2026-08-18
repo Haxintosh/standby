@@ -1,0 +1,12 @@
+{
+  "API_KEY": {
+    "type": "string",
+    "default": "Insert your AlphaVantage API key",
+    "target": "js"
+  },
+  "SYMBOL": {
+    "type": "string",
+    "default": "IBM",
+    "target": "js"
+  }
+}

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Calendar</title>
+        <style>
+            /*:root {
+                --accentColor: #fb4c4c;
+                --bgColor: #050505;
+                --textMain: #ffffff;
+                --textDim: #8c8c8c;
+            }*/
+
+            body,
+            html {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background-color: #000000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+                user-select: none;
+            }
+
+            .calendar {
+                height: 100%;
+                aspect-ratio: 1 / 1;
+                background-color: var(--bgColor);
+                padding: 6% 8%;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .month-header {
+                color: var(--accentColor);
+                font-size: 6vh;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+                margin-bottom: 6%;
+                text-transform: uppercase;
+            }
+
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                grid-auto-rows: 1fr;
+                gap: 2%;
+                flex-grow: 1;
+            }
+
+            .day-name {
+                color: var(--textMain);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 4vh;
+                font-weight: 600;
+            }
+
+            .day-name.weekend,
+            .day.weekend {
+                color: var(--textDim);
+            }
+
+            .day {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--textMain);
+                font-size: 5vh;
+                font-weight: 600;
+            }
+
+            .day.active {
+                background-color: var(--accentColor);
+                color: var(--textMain);
+                border-radius: 50%;
+                aspect-ratio: 1 / 1;
+                height: 85%;
+                margin: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="calendar">
+            <div class="month-header" id="month-name"></div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+
+        <script>
+            const isSundayStart = true;
+            let startOfWeek = "Monday";
+            if (isSundayStart) {
+                startOfWeek = "Sunday";
+            }
+
+            const grid = document.getElementById("calendar-grid");
+            const monthHeader = document.getElementById("month-name");
+
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth();
+            const currentDate = today.getDate();
+
+            const monthNames = [
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December",
+            ];
+            monthHeader.textContent = monthNames[currentMonth];
+
+            const daysOfWeek =
+                startOfWeek === "Monday"
+                    ? ["M", "T", "W", "T", "F", "S", "S"]
+                    : ["S", "M", "T", "W", "T", "F", "S"];
+
+            daysOfWeek.forEach((day, index) => {
+                const dayNameEl = document.createElement("div");
+                dayNameEl.classList.add("day-name");
+                dayNameEl.textContent = day;
+
+                let isWeekend = false;
+                if (startOfWeek === "Monday") {
+                    if (index === 5 || index === 6) isWeekend = true; // Sat, Sun
+                } else {
+                    if (index === 0 || index === 6) isWeekend = true; // Sun, Sat
+                }
+
+                if (isWeekend) {
+                    dayNameEl.classList.add("weekend");
+                }
+                grid.appendChild(dayNameEl);
+            });
+
+            const daysInMonth = new Date(
+                currentYear,
+                currentMonth + 1,
+                0,
+            ).getDate();
+            const firstDayOfWeek = new Date(
+                currentYear,
+                currentMonth,
+                1,
+            ).getDay();
+
+            let offset = firstDayOfWeek;
+            if (startOfWeek === "Monday") {
+                offset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+            }
+
+            for (let i = 0; i < offset; i++) {
+                const emptyCell = document.createElement("div");
+                grid.appendChild(emptyCell);
+            }
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayElement = document.createElement("div");
+                dayElement.classList.add("day");
+                dayElement.textContent = i;
+
+                const currentDayColumn = (offset + i - 1) % 7;
+                let isWeekendDay = false;
+
+                if (startOfWeek === "Monday") {
+                    if (currentDayColumn === 5 || currentDayColumn === 6)
+                        isWeekendDay = true;
+                } else {
+                    if (currentDayColumn === 0 || currentDayColumn === 6)
+                        isWeekendDay = true;
+                }
+
+                if (isWeekendDay) {
+                    dayElement.classList.add("weekend");
+                }
+
+                if (i === currentDate) {
+                    dayElement.classList.add("active");
+                }
+
+                grid.appendChild(dayElement);
+            }
+        </script>
+    </body>
+</html>

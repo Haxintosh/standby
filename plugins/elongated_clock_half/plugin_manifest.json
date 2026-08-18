@@ -1,0 +1,12 @@
+﻿{
+  "id": "com.example.elongated_clock_half",
+  "name": "Elongated clock (Stacked)",
+  "description": "Elongated pixel-style clock with hour stacked over minutes",
+  "author": "honk",
+  "version": "1.0.0",
+  "size": "half",
+  "permissions": ["alarms"],
+  "providers": ["weather"],
+  "network_whitelist": [],
+  "min_app_version": 1
+}

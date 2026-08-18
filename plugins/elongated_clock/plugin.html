@@ -1,0 +1,206 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Style Clock</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-main: #ffffff;
+            --accent-color: #8bb3f8;
+        }
+
+        @font-face {
+            font-family: 'GoogleSansFlex';
+            src: url('assets/GoogleSansFlex.ttf') format('truetype');
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'GoogleSansFlex';
+            font-variation-settings: 'wght' 700, 'wdth' 50, 'ROND' 50;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .clock-container {
+            display: flex;
+            align-items: stretch;
+            gap: 10vh;
+        }
+
+        .time-display {
+            color: var(--accent-color);
+            font-size: 85vh;
+            line-height: 0.8;
+            letter-spacing: -5px;
+        }
+
+        .side-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 0;
+            align-items: flex-start;
+        }
+
+        .top-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .date-display {
+            color: var(--accent-color);
+            font-size: 9vh;
+            font-weight: 600;
+            letter-spacing: 1px;
+            font-variation-settings: 'wdth' 100, 'ROND' 50;
+        }
+
+        .weather-display {
+            font-size: 9vh;
+            font-weight: 600;
+            font-variation-settings: 'wdth' 100, 'ROND' 50;
+        }
+
+        .bottom-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 9vh;
+            font-weight: 600;
+        }
+
+        .alarm-icon {
+            width: 10vh;
+            height: 10vh;
+            margin-left: -1vh;
+            fill: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="clock-container">
+    <div class="time-display" id="time">2:37</div>
+
+    <div class="side-info">
+        <div class="top-info">
+            <div class="date-display" id="date">MON 01</div>
+            <div class="weather-display" id="weather-display">68&deg;</div>
+        </div>
+
+        <div class="bottom-info" id="alarm-container" style="display: none;">
+            <svg class="alarm-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14zm0 2a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/>
+                <path d="M11.5 8h1v4.4l3.2 2.3-.6.8-3.6-2.6V8zM4.3 4.8l1.5-1.4 2.8 2.8-1.5 1.4L4.3 4.8zm15.4-1.4l1.5 1.4-2.8 2.8-1.5-1.4 2.8-2.8z"/>
+            </svg>
+            <span id="alarm-time"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuration variables with default values (overridden by Android side if configured)
+    window.twentyFourHour = false;
+    try {
+        if (window.AndroidSensors && typeof window.AndroidSensors.getCustomizations === 'function') {
+            const cust = JSON.parse(window.AndroidSensors.getCustomizations());
+            if (cust.twentyFourHour !== undefined) {
+                window.twentyFourHour = (cust.twentyFourHour === true || cust.twentyFourHour === "true");
+            }
+        }
+    } catch (e) {}
+
+    function updateClock() {
+        const now = new Date();
+
+        // Format Time based on twentyFourHour preference
+        let hours = now.getHours();
+        let minutes = now.getMinutes();
+        minutes = minutes < 10 ? '0' + minutes : minutes;
+
+        let timeStr;
+        if (window.twentyFourHour) {
+            let hoursStr = hours < 10 ? '0' + hours : hours;
+            timeStr = ${hoursStr}:;
+        } else {
+            hours = hours % 12;
+            hours = hours ? hours : 12; // Handle midnight/noon (0 becomes 12)
+            timeStr = ${hours}:;
+        }
+
+        document.getElementById('time').textContent = timeStr;
+
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        const dayName = days[now.getDay()];
+        const date = now.getDate();
+
+        document.getElementById('date').textContent = ${dayName} ;
+
+        // Also check and update the alarm information
+        updateAlarm();
+
+        updateWeather();
+    }
+
+    function updateAlarm() {
+        let hasAlarm = false;
+        let formattedAlarmTime = "";
+
+        if (window.AndroidSensors && typeof window.AndroidSensors.getNextAlarm === 'function') {
+            try {
+                const alarmRes = JSON.parse(window.AndroidSensors.getNextAlarm());
+                hasAlarm = alarmRes.hasAlarm;
+                formattedAlarmTime = alarmRes.formattedTime;
+            } catch (e) {
+                console.error("Failed parsing alarm data from SensorBridge:", e);
+            }
+        } else {
+            hasAlarm = true;
+            formattedAlarmTime = "7:30 AM";
+        }
+
+        const container = document.getElementById('alarm-container');
+        const timeSpan = document.getElementById('alarm-time');
+
+        if (hasAlarm && formattedAlarmTime) {
+            timeSpan.textContent = formattedAlarmTime;
+            container.style.display = 'flex';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function updateWeather(){
+        let temp = 25;
+        if (window.AndroidProviders && typeof window.AndroidProviders.getCurrentWeather == 'function') {
+            temp = JSON.parse(window.AndroidProviders.getCurrentWeather()).temp;
+            document.getElementById('weather-display').innerHTML = ${temp}&deg;;
+        } else {
+            document.getElementById('weather-display').innerHTML = ${temp}&deg;;
+        }
+    }
+
+    window.onCustomizationChanged = (changes) => {
+        if (changes.twentyFourHour !== undefined) {
+            window.twentyFourHour = (changes.twentyFourHour === true || changes.twentyFourHour === "true");
+        }
+        updateClock();
+    };
+
+    updateClock();
+    setInterval(updateClock, 1000);
+</script>
+</body>
+</html>

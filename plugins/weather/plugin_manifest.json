@@ -1,0 +1,12 @@
+{
+  "id": "com.example.weather",
+  "name": "Weather example",
+  "description": "A weather display plugin",
+  "author": "honk",
+  "version": "0.0.1",
+  "size": "half",
+  "permissions": [],
+  "providers": ["weather"],
+  "network_whitelist": [],
+  "min_app_version": 1
+}

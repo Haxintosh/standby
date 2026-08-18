@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elongated Clock Stacked</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-main: #ffffff;
+            --accent-color: #8bb3f8;
+        }
+
+        @font-face {
+            font-family: 'GoogleSansFlex';
+            src: url('assets/GoogleSansFlex.ttf') format('truetype');
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            font-family: 'GoogleSansFlex';
+            font-variation-settings: 'wght' 700, 'wdth' 50, 'ROND' 50;
+            user-select: none;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .clock-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5vw;
+            width: 100%;
+            height: 100%;
+            padding: 1vh 3vw;
+            box-sizing: border-box;
+        }
+
+        .time-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            line-height: 0.72;
+        }
+
+        .time-digits {
+            color: var(--accent-color);
+            font-size: 58vh;
+            letter-spacing: -4px;
+            font-variation-settings: 'wght' 700, 'wdth' 50, 'ROND' 50;
+        }
+
+        .side-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 82vh;
+            align-items: flex-start;
+            padding: 1vh 0;
+            box-sizing: border-box;
+        }
+
+        .top-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .weather-display {
+            font-size: 9vh;
+            font-weight: 600;
+            font-variation-settings: 'wdth' 100, 'ROND' 50;
+        }
+
+        .bottom-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 8vh;
+            font-weight: 600;
+        }
+
+        .alarm-icon {
+            width: 8vh;
+            height: 8vh;
+            margin-left: -0.5vh;
+            fill: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="clock-container">
+    <div class="time-stack">
+        <div class="time-digits" id="hour">10</div>
+        <div class="time-digits" id="minute">35</div>
+    </div>
+</div>
+
+<script>
+    window.twentyFourHour = false;
+    try {
+        if (window.AndroidSensors && typeof window.AndroidSensors.getCustomizations === 'function') {
+            const cust = JSON.parse(window.AndroidSensors.getCustomizations());
+            if (cust.twentyFourHour !== undefined) {
+                window.twentyFourHour = (cust.twentyFourHour === true || cust.twentyFourHour === "true");
+            }
+        }
+    } catch (e) {}
+
+    function updateClock() {
+        const now = new Date();
+
+        let hours = now.getHours();
+        let minutes = now.getMinutes();
+        const minStr = minutes < 10 ? '0' + minutes : '' + minutes;
+
+        let hourStr;
+        if (window.twentyFourHour) {
+            hourStr = hours < 10 ? '0' + hours : '' + hours;
+        } else {
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            hourStr = hours < 10 ? '0' + hours : '' + hours;
+        }
+
+        document.getElementById('hour').textContent = hourStr;
+        document.getElementById('minute').textContent = minStr;
+    }
+
+    function updateAlarm() {
+        let hasAlarm = false;
+        let formattedAlarmTime = "";
+
+        if (window.AndroidSensors && typeof window.AndroidSensors.getNextAlarm === 'function') {
+            try {
+                const alarmRes = JSON.parse(window.AndroidSensors.getNextAlarm());
+                hasAlarm = alarmRes.hasAlarm;
+                formattedAlarmTime = alarmRes.formattedTime;
+            } catch (e) {
+                console.error("Failed parsing alarm data from SensorBridge:", e);
+            }
+        } else {
+            hasAlarm = true;
+            formattedAlarmTime = "7:30 AM";
+        }
+
+        const container = document.getElementById('alarm-container');
+        const timeSpan = document.getElementById('alarm-time');
+
+        if (hasAlarm && formattedAlarmTime) {
+            timeSpan.textContent = formattedAlarmTime;
+            container.style.display = 'flex';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function updateWeather(){
+        let temp = 25;
+        if (window.AndroidProviders && typeof window.AndroidProviders.getCurrentWeather == 'function') {
+            temp = JSON.parse(window.AndroidProviders.getCurrentWeather()).temp;
+            document.getElementById('weather-display').innerHTML = ${temp}&deg;;
+        } else {
+            document.getElementById('weather-display').innerHTML = ${temp}&deg;;
+        }
+    }
+
+    window.onCustomizationChanged = (changes) => {
+        if (changes.twentyFourHour !== undefined) {
+            window.twentyFourHour = (changes.twentyFourHour === true || changes.twentyFourHour === "true");
+        }
+        updateClock();
+    };
+
+    updateClock();
+    setInterval(updateClock, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+﻿{
+  "id": "com.example.soft_clock_half",
+  "name": "Bubbly clock (Stacked)",
+  "description": "Whimsical bubbly clock with hour stacked over minutes",
+  "author": "honk",
+  "version": "1.0.0",
+  "size": "half",
+  "permissions": [],
+  "network_whitelist": [],
+  "min_app_version": 1
+}

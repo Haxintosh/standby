@@ -1,0 +1,11 @@
+﻿{
+  "id": "com.example.bad_apple",
+  "name": "Bad Apple ASCII",
+  "description": "Plays the classic Bad Apple video rendered in animated ASCII art",
+  "author": "honk",
+  "version": "1.0.0",
+  "size": "half",
+  "permissions": [],
+  "network_whitelist": [],
+  "min_app_version": 1
+}

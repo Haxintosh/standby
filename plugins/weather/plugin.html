@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square Weather Widget</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --accent-color: #8E8E93;
+        }
+
+        @font-face {
+            font-family: 'GoogleSansFlex';
+            src: url('assets/GoogleSansFlex.ttf') format('truetype');
+        }
+
+        body {
+          background-color: var(--bg-color);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          overflow: hidden;
+          user-select: none;
+        }
+
+        .weather-widget {
+          background-color: var(--bg-color);
+          color: var(--text-color);
+          font-family: 'GoogleSansFlex', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          font-variation-settings: "ROND" 100;
+
+          height: 100vh;
+          aspect-ratio: 1 / 1;
+          box-sizing: border-box;
+          padding: 8vh;
+
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .top-section {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .location {
+          font-size: 5vh;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          gap: 1.5vh;
+          margin-bottom: 2vh;
+          margin-top:-2vh;
+        }
+
+        .location svg {
+          width: 4vh;
+          height: 4vh;
+          fill: currentColor;
+          stroke: currentColor;
+          stroke-width: 0.5;
+        }
+
+        .temperature {
+          font-size: 60vh;
+          font-weight: 850;
+          margin: 0;
+          line-height: 0.9;
+          letter-spacing: -1.5vh;
+        }
+
+        .condition-container {
+          display: flex;
+          flex-direction: column;
+          margin-bottom: 2vh;
+        }
+
+        .icon-row {
+          display: flex;
+          align-items: center;
+          gap: 2vh;
+          margin-top: 1vh;
+          margin-bottom: -2vh;
+        }
+
+        .icon-container {
+          width: 20vh;
+          height: 20vh;
+          flex-shrink: 0;
+          margin-left: -4vh;
+        }
+
+        .icon-container img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+
+        .description {
+          font-size: 8vh;
+          font-weight: 800;
+          margin: 0;
+          text-transform: capitalize;
+        }
+
+        .high-low {
+          font-size: 5vh;
+          color: var(--accent-color);
+          font-weight: 700;
+          margin-top: 1vh;
+        }
+
+        .attribution {
+          font-family: 'GoogleSansFlex', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-variation-settings: "ROND" 100;
+          font-size: 1.8vh;
+          color: var(--accent-color);
+          opacity: 0.8;
+          text-align: center;
+          padding-top: 1vh;
+        }
+    </style>
+</head>
+<body>
+
+<div class="weather-widget">
+
+    <div class="top-section">
+        <div class="location" id="location">
+            --
+            <svg viewBox="0 0 24 24">
+                <path d="M21 3L3 10.53v.98l6.84 2.65L12.48 21h.98L21 3z"/>
+            </svg>
+        </div>
+        <h1 class="temperature" id="temp">--&deg;</h1>
+    </div>
+
+    <div class="condition-container">
+        <div class="icon-row">
+            <div class="icon-container">
+                <img id="icon" src="" alt="" style="display: none;">
+            </div>
+            <div class="description" id="description">Loading...</div>
+        </div>
+        <div class="high-low" id="high-low">H:--&deg; L:--&deg;</div>
+    </div>
+
+    <div class="attribution">
+        Data by Open-Meteo, icons by OpenWeather
+    </div>
+
+</div>
+
+<script>
+    let updateInterval;
+
+    window.onCustomizationChanged = (changes) => {
+        initWidget();
+    };
+
+    function setupInterval() {
+        if (updateInterval) clearInterval(updateInterval);
+        // Check for local weather cache updates every 1 minute
+        updateInterval = setInterval(initWidget, 60 * 1000);
+    }
+
+    function initWidget() {
+      if (!window.AndroidProviders || typeof window.AndroidProviders.getCurrentWeather !== 'function') {
+        console.warn("Weather provider bridge not detected. Using mock preview data.");
+        document.getElementById('location').firstChild.textContent = "Montreal ";
+        document.getElementById('temp').innerHTML = `22&deg;`;
+        document.getElementById('description').textContent = "Partly Cloudy";
+        document.getElementById('high-low').innerHTML = `H:25&deg; L:15&deg;`;
+        const iconImg = document.getElementById('icon');
+        iconImg.src = `https://openweathermap.org/img/wn/02d@4x.png`;
+        iconImg.style.display = 'block';
+        return;
+      }
+
+      try {
+        const weatherJson = window.AndroidProviders.getCurrentWeather();
+        const data = JSON.parse(weatherJson);
+
+        if (!data || Object.keys(data).length === 0 || !data.city) {
+          document.getElementById('description').textContent = 'No weather data';
+          return;
+        }
+
+        let cityDisplay = data.city || 'Unknown';
+        if (cityDisplay.includes(',')) {
+          cityDisplay = cityDisplay.split(',')[0].trim();
+        }
+        document.getElementById('location').firstChild.textContent = cityDisplay + ' ';
+
+        if (data.temp !== null && data.temp !== undefined) {
+          document.getElementById('temp').innerHTML = `${Math.round(data.temp)}&deg;`;
+        } else {
+          document.getElementById('temp').innerHTML = `--&deg;`;
+        }
+
+        document.getElementById('description').textContent = data.description || 'Unknown';
+
+        const high = (data.tempMax !== null && data.tempMax !== undefined) ? Math.round(data.tempMax) : '--';
+        const low = (data.tempMin !== null && data.tempMin !== undefined) ? Math.round(data.tempMin) : '--';
+        document.getElementById('high-low').innerHTML = `H:${high}&deg; L:${low}&deg;`;
+
+        const iconImg = document.getElementById('icon');
+        if (data.icon) {
+          let iconUrl = data.icon;
+          // Upgrade standard openweather icons to @4x for sharper quality in WebView (only for URL fallbacks)
+          if (!iconUrl.startsWith('data:') && iconUrl.includes("@2x.png")) {
+             iconUrl = iconUrl.replace("@2x.png", "@4x.png");
+          }
+          iconImg.src = iconUrl;
+          iconImg.style.display = 'block';
+        } else {
+          iconImg.style.display = 'none';
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch weather data from bridge:", error);
+        document.getElementById('description').textContent = 'Error loading';
+      }
+    }
+
+    initWidget();
+    setupInterval();
+</script>
+
+</body>
+</html>
