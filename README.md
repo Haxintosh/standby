@@ -4,7 +4,9 @@
 > [!IMPORTANT]
 > This app is still very much WIP!
 
-**Plugins can be found under [plugins/build/](plugins/build/)**
+**Plugins can be found under [plugins/build/](plugins/build/)**  
+
+**Video Demo: [video link](https://drive.google.com/file/d/1LBqg1Of4_amh87YIiEeGrte-fc33Wl7u/view?usp=sharing)**
 
 **Standby** is a modular, open-source Android app similar to the iOS StandBy mode.
 
