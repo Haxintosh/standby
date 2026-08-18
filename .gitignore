@@ -22,5 +22,8 @@ STYLE.md
 GEMINI.md
 SCRATCH.md
 *.zip
+!plugins/build/*.zip
+!plugins/build/**/*.zip
 doc.md
-/release/
+release/
+*.apk
