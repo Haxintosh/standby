@@ -51,6 +51,21 @@ fun SettingsDialog(
     onConfirmImportEnabledChange: (Boolean) -> Unit,
     appWidgetsEnabled: Boolean,
     onAppWidgetsEnabledChange: (Boolean) -> Unit,
+    nightModeEnabled: Boolean,
+    onNightModeEnabledChange: (Boolean) -> Unit,
+    nightStartHour: Int,
+    nightStartMinute: Int,
+    onNightStartTimeChange: (Int, Int) -> Unit,
+    nightEndHour: Int,
+    nightEndMinute: Int,
+    onNightEndTimeChange: (Int, Int) -> Unit,
+    nightProtectionRatio: Int,
+    onNightProtectionRatioChange: (Int) -> Unit,
+    nightBrightnessEnabled: Boolean,
+    onNightBrightnessEnabledChange: (Boolean) -> Unit,
+    nightBrightnessValue: Float,
+    onNightBrightnessValueChange: (Float) -> Unit,
+    isNightModeActive: Boolean,
     weatherLat: String,
     weatherLon: String,
     weatherCity: String,
@@ -95,16 +110,21 @@ fun SettingsDialog(
                         selectedTabIndex = selectedTabIndex,
                         containerColor = Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.width(360.dp)
+                        modifier = Modifier.width(520.dp)
                     ) {
                         Tab(
                             selected = selectedTabIndex == 0,
                             onClick = { selectedTabIndex = 0 },
-                            text = { Text("General Settings", fontWeight = FontWeight.Bold) }
+                            text = { Text("General", fontWeight = FontWeight.Bold) }
                         )
                         Tab(
                             selected = selectedTabIndex == 1,
                             onClick = { selectedTabIndex = 1 },
+                            text = { Text("Night Mode", fontWeight = FontWeight.Bold) }
+                        )
+                        Tab(
+                            selected = selectedTabIndex == 2,
+                            onClick = { selectedTabIndex = 2 },
                             text = { Text("Providers", fontWeight = FontWeight.Bold) }
                         )
                     }
@@ -126,8 +146,8 @@ fun SettingsDialog(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                if (selectedTabIndex == 0) {
-                    GeneralSettingsTab(
+                when (selectedTabIndex) {
+                    0 -> GeneralSettingsTab(
                         burnInProtectionEnabled = burnInProtectionEnabled,
                         onBurnInProtectionEnabledChange = onBurnInProtectionEnabledChange,
                         delayAfterInteraction = delayAfterInteraction,
@@ -151,8 +171,24 @@ fun SettingsDialog(
                         appWidgetsEnabled = appWidgetsEnabled,
                         onAppWidgetsEnabledChange = onAppWidgetsEnabledChange
                     )
-                } else {
-                    ProviderSettingsTab(
+                    1 -> NightModeTab(
+                        nightModeEnabled = nightModeEnabled,
+                        onNightModeEnabledChange = onNightModeEnabledChange,
+                        nightStartHour = nightStartHour,
+                        nightStartMinute = nightStartMinute,
+                        onNightStartTimeChange = onNightStartTimeChange,
+                        nightEndHour = nightEndHour,
+                        nightEndMinute = nightEndMinute,
+                        onNightEndTimeChange = onNightEndTimeChange,
+                        nightProtectionRatio = nightProtectionRatio,
+                        onNightProtectionRatioChange = onNightProtectionRatioChange,
+                        nightBrightnessEnabled = nightBrightnessEnabled,
+                        onNightBrightnessEnabledChange = onNightBrightnessEnabledChange,
+                        nightBrightnessValue = nightBrightnessValue,
+                        onNightBrightnessValueChange = onNightBrightnessValueChange,
+                        isNightModeActive = isNightModeActive
+                    )
+                    else -> ProviderSettingsTab(
                         weatherLat = weatherLat,
                         weatherLon = weatherLon,
                         weatherCity = weatherCity,
@@ -758,6 +794,514 @@ fun GeneralSettingsTab(
 }
 
 @Composable
+fun NightModeTab(
+    nightModeEnabled: Boolean,
+    onNightModeEnabledChange: (Boolean) -> Unit,
+    nightStartHour: Int,
+    nightStartMinute: Int,
+    onNightStartTimeChange: (Int, Int) -> Unit,
+    nightEndHour: Int,
+    nightEndMinute: Int,
+    onNightEndTimeChange: (Int, Int) -> Unit,
+    nightProtectionRatio: Int,
+    onNightProtectionRatioChange: (Int) -> Unit,
+    nightBrightnessEnabled: Boolean,
+    onNightBrightnessEnabledChange: (Boolean) -> Unit,
+    nightBrightnessValue: Float,
+    onNightBrightnessValueChange: (Float) -> Unit,
+    isNightModeActive: Boolean
+) {
+    var showStartTimePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        // Left Column: Activation & Schedule
+        Card(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = borderStroke()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Night Mode Schedule",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Enable Night Mode",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Automate display dimming and maximum burn-in protection during sleep hours",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = nightModeEnabled,
+                        onCheckedChange = onNightModeEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+
+                if (nightModeEnabled) {
+                    // Status Badge
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = if (isNightModeActive)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(
+                                        color = if (isNightModeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                        shape = CircleShape
+                                    )
+                            )
+                            Text(
+                                text = if (isNightModeActive)
+                                    "Night Mode is currently ACTIVE"
+                                else
+                                    "Night Mode is currently inactive (Daytime)",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isNightModeActive)
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    Text(
+                        text = "Schedule Times",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Night Start Time Card
+                    Card(
+                        onClick = { showStartTimePicker = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                        ),
+                        border = borderStroke(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Night Start Time",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "When night OLED protection and dimming begins",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = formatTime(nightStartHour, nightStartMinute),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Wake Up Time Card
+                    Card(
+                        onClick = { showEndTimePicker = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+                        ),
+                        border = borderStroke(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Wake Up Time",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Releases brightness lock back to system control",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = formatTime(nightEndHour, nightEndMinute),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right Column: Display Adjustments (OLED & Brightness)
+        Card(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            border = borderStroke()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Night Display Adjustments",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // OLED Protection Section
+                val percentage = (nightProtectionRatio.toFloat() / (nightProtectionRatio + 1) * 100).toInt()
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Night OLED Protection Strength",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Overrides standard OLED protection during night hours",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "$percentage% Pixels Off",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    val haptic = LocalHapticFeedback.current
+                    Slider(
+                        value = nightProtectionRatio.toFloat(),
+                        onValueChange = { newValue ->
+                            val newInt = newValue.toInt()
+                            if (newInt != nightProtectionRatio) {
+                                onNightProtectionRatioChange(newInt)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        },
+                        valueRange = 1f..5f,
+                        steps = 3,
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            thumbColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Minimal (50%)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Maximum (83%)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // Screen Brightness Section
+                Text(
+                    text = "Screen Brightness",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Lower Brightness at Night",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Locks screen to low brightness during sleep hours",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = nightBrightnessEnabled,
+                        onCheckedChange = onNightBrightnessEnabledChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+
+                if (nightBrightnessEnabled) {
+                    val brightnessPercent = (nightBrightnessValue * 100).toInt().coerceIn(1, 100)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Night Brightness Level",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "$brightnessPercent%",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        val haptic = LocalHapticFeedback.current
+                        Slider(
+                            value = nightBrightnessValue,
+                            onValueChange = { newValue ->
+                                onNightBrightnessValueChange(newValue)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            valueRange = 0.01f..0.50f,
+                            colors = SliderDefaults.colors(
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                thumbColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "1% (Dim)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "50%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "When wake up time is reached, the brightness lock is released automatically so your phone resumes control of the brightness.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showStartTimePicker) {
+        TimeSelectionDialog(
+            title = "Set Night Start Time",
+            initialHour = nightStartHour,
+            initialMinute = nightStartMinute,
+            onConfirm = { h, m ->
+                onNightStartTimeChange(h, m)
+                showStartTimePicker = false
+            },
+            onDismiss = { showStartTimePicker = false }
+        )
+    }
+
+    if (showEndTimePicker) {
+        TimeSelectionDialog(
+            title = "Set Wake Up Time",
+            initialHour = nightEndHour,
+            initialMinute = nightEndMinute,
+            onConfirm = { h, m ->
+                onNightEndTimeChange(h, m)
+                showEndTimePicker = false
+            },
+            onDismiss = { showEndTimePicker = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimeSelectionDialog(
+    title: String,
+    initialHour: Int,
+    initialMinute: Int,
+    onConfirm: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = false
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                TimeInput(
+                    state = timePickerState
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+private fun formatTime(hour: Int, minute: Int): String {
+    val amPm = if (hour >= 12) "PM" else "AM"
+    val displayHour = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    return String.format("%02d:%02d %s (%02d:%02d)", displayHour, minute, amPm, hour, minute)
+}
+
+@Composable
 fun ProviderSettingsTab(
     weatherLat: String,
     weatherLon: String,
@@ -944,6 +1488,21 @@ fun SettingsDialogPreview() {
         onConfirmImportEnabledChange = {},
         appWidgetsEnabled = true,
         onAppWidgetsEnabledChange = {},
+        nightModeEnabled = true,
+        onNightModeEnabledChange = {},
+        nightStartHour = 22,
+        nightStartMinute = 0,
+        onNightStartTimeChange = { _, _ -> },
+        nightEndHour = 7,
+        nightEndMinute = 0,
+        onNightEndTimeChange = { _, _ -> },
+        nightProtectionRatio = 4,
+        onNightProtectionRatioChange = {},
+        nightBrightnessEnabled = true,
+        onNightBrightnessEnabledChange = {},
+        nightBrightnessValue = 0.05f,
+        onNightBrightnessValueChange = {},
+        isNightModeActive = false,
         weatherLat = "52.52",
         weatherLon = "13.41",
         weatherCity = "Berlin",

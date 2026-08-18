@@ -9,11 +9,13 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.Calendar
 
 class StandbyViewModel(application: Application) : AndroidViewModel(application) {
     
@@ -75,6 +77,91 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         _appWidgetsEnabled.value = enabled
         sharedPreferences.edit().putBoolean("app_widgets_enabled", enabled).apply()
         rebuildStandbyPages()
+    }
+
+    private val _nightModeEnabled = MutableStateFlow(sharedPreferences.getBoolean("night_mode_enabled", false))
+    val nightModeEnabled: StateFlow<Boolean> = _nightModeEnabled.asStateFlow()
+
+    private val _nightStartHour = MutableStateFlow(sharedPreferences.getInt("night_mode_start_hour", 22))
+    val nightStartHour: StateFlow<Int> = _nightStartHour.asStateFlow()
+
+    private val _nightStartMinute = MutableStateFlow(sharedPreferences.getInt("night_mode_start_minute", 0))
+    val nightStartMinute: StateFlow<Int> = _nightStartMinute.asStateFlow()
+
+    private val _nightEndHour = MutableStateFlow(sharedPreferences.getInt("night_mode_end_hour", 7))
+    val nightEndHour: StateFlow<Int> = _nightEndHour.asStateFlow()
+
+    private val _nightEndMinute = MutableStateFlow(sharedPreferences.getInt("night_mode_end_minute", 0))
+    val nightEndMinute: StateFlow<Int> = _nightEndMinute.asStateFlow()
+
+    private val _nightProtectionRatio = MutableStateFlow(sharedPreferences.getInt("night_protection_ratio", 4))
+    val nightProtectionRatio: StateFlow<Int> = _nightProtectionRatio.asStateFlow()
+
+    private val _nightBrightnessEnabled = MutableStateFlow(sharedPreferences.getBoolean("night_brightness_enabled", true))
+    val nightBrightnessEnabled: StateFlow<Boolean> = _nightBrightnessEnabled.asStateFlow()
+
+    private val _nightBrightnessValue = MutableStateFlow(sharedPreferences.getFloat("night_brightness_value", 0.05f))
+    val nightBrightnessValue: StateFlow<Float> = _nightBrightnessValue.asStateFlow()
+
+    private val _isNightModeActive = MutableStateFlow(false)
+    val isNightModeActive: StateFlow<Boolean> = _isNightModeActive.asStateFlow()
+
+    fun setNightModeEnabled(enabled: Boolean) {
+        _nightModeEnabled.value = enabled
+        sharedPreferences.edit().putBoolean("night_mode_enabled", enabled).apply()
+        updateNightModeActiveState()
+    }
+
+    fun setNightStartTime(hour: Int, minute: Int) {
+        _nightStartHour.value = hour
+        _nightStartMinute.value = minute
+        sharedPreferences.edit()
+            .putInt("night_mode_start_hour", hour)
+            .putInt("night_mode_start_minute", minute)
+            .apply()
+        updateNightModeActiveState()
+    }
+
+    fun setNightEndTime(hour: Int, minute: Int) {
+        _nightEndHour.value = hour
+        _nightEndMinute.value = minute
+        sharedPreferences.edit()
+            .putInt("night_mode_end_hour", hour)
+            .putInt("night_mode_end_minute", minute)
+            .apply()
+        updateNightModeActiveState()
+    }
+
+    fun setNightProtectionRatio(ratio: Int) {
+        _nightProtectionRatio.value = ratio
+        sharedPreferences.edit().putInt("night_protection_ratio", ratio).apply()
+    }
+
+    fun setNightBrightnessEnabled(enabled: Boolean) {
+        _nightBrightnessEnabled.value = enabled
+        sharedPreferences.edit().putBoolean("night_brightness_enabled", enabled).apply()
+    }
+
+    fun setNightBrightnessValue(value: Float) {
+        _nightBrightnessValue.value = value
+        sharedPreferences.edit().putFloat("night_brightness_value", value).apply()
+    }
+
+    fun updateNightModeActiveState(cal: Calendar = Calendar.getInstance()) {
+        if (!_nightModeEnabled.value) {
+            _isNightModeActive.value = false
+            return
+        }
+        val currentHour = cal.get(Calendar.HOUR_OF_DAY)
+        val currentMinute = cal.get(Calendar.MINUTE)
+        _isNightModeActive.value = isNightTime(
+            currentHour = currentHour,
+            currentMinute = currentMinute,
+            startHour = _nightStartHour.value,
+            startMinute = _nightStartMinute.value,
+            endHour = _nightEndHour.value,
+            endMinute = _nightEndMinute.value
+        )
     }
 
     val providerManager = ProviderManager(application)
@@ -176,6 +263,14 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     }
 
     init {
+        updateNightModeActiveState()
+        viewModelScope.launch {
+            while (true) {
+                val cal = Calendar.getInstance()
+                updateNightModeActiveState(cal)
+                delay(10_000L)
+            }
+        }
         loadPlugins()
         if (sharedPreferences.getBoolean("server_enabled", true)) {
             startServer()
@@ -731,5 +826,28 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         super.onCleared()
         pluginServer?.stop()
         providerManager.stopWeatherUpdates()
+    }
+
+    companion object {
+        fun isNightTime(
+            currentHour: Int,
+            currentMinute: Int,
+            startHour: Int,
+            startMinute: Int,
+            endHour: Int,
+            endMinute: Int
+        ): Boolean {
+            val currentMin = currentHour * 60 + currentMinute
+            val startMin = startHour * 60 + startMinute
+            val endMin = endHour * 60 + endMinute
+
+            return if (startMin == endMin) {
+                false
+            } else if (startMin < endMin) {
+                currentMin in startMin until endMin
+            } else {
+                currentMin >= startMin || currentMin < endMin
+            }
+        }
     }
 }

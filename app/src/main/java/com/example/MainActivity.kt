@@ -29,6 +29,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.os.VibrationEffect
+import android.view.HapticFeedbackConstants
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Shader
@@ -135,6 +144,16 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val hideControlsOnIdle by viewModel.hideControlsOnIdle.collectAsState()
     val lowRefreshRateEnabled by viewModel.lowRefreshRateEnabled.collectAsState()
     val lowRefreshRateValue by viewModel.lowRefreshRateValue.collectAsState()
+
+    val nightModeEnabled by viewModel.nightModeEnabled.collectAsState()
+    val nightStartHour by viewModel.nightStartHour.collectAsState()
+    val nightStartMinute by viewModel.nightStartMinute.collectAsState()
+    val nightEndHour by viewModel.nightEndHour.collectAsState()
+    val nightEndMinute by viewModel.nightEndMinute.collectAsState()
+    val nightProtectionRatio by viewModel.nightProtectionRatio.collectAsState()
+    val nightBrightnessEnabled by viewModel.nightBrightnessEnabled.collectAsState()
+    val nightBrightnessValue by viewModel.nightBrightnessValue.collectAsState()
+    val isNightModeActive by viewModel.isNightModeActive.collectAsState()
 
     val weatherLat by viewModel.weatherLat.collectAsState()
     val weatherLon by viewModel.weatherLon.collectAsState()
@@ -243,6 +262,37 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         } else {
             AppWidgetHostHelper.stopListening()
         }
+    }
+
+    LaunchedEffect(isNightModeActive, nightBrightnessEnabled, nightBrightnessValue) {
+        val layoutParams = window.attributes
+        if (isNightModeActive && nightBrightnessEnabled) {
+            layoutParams.screenBrightness = nightBrightnessValue.coerceIn(0.01f, 1.0f)
+        } else {
+            layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        }
+        window.attributes = layoutParams
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            val layoutParams = window.attributes
+            layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            window.attributes = layoutParams
+        }
+    }
+
+    val view = LocalView.current
+    var isFirstPageLoad by remember { mutableStateOf(true) }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .collect {
+                if (isFirstPageLoad) {
+                    isFirstPageLoad = false
+                } else {
+                    performStrongHapticFeedback(context, view)
+                }
+            }
     }
 
     var showAppWidgetPicker by remember { mutableStateOf(false) }
@@ -426,10 +476,12 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                         }
                     }
                 }
-                if (burnInProtectionEnabled && isInactive) {
+                val effectiveProtectionRatio = if (isNightModeActive) nightProtectionRatio else protectionRatio
+                val effectiveBurnInProtection = burnInProtectionEnabled || isNightModeActive
+                if (effectiveBurnInProtection && isInactive) {
                     PixelPerfectBurnInMask(
                         modifier = Modifier.fillMaxSize(),
-                        protectionRatio = protectionRatio
+                        protectionRatio = effectiveProtectionRatio
                     )
                 }
             }
@@ -589,6 +641,52 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             }
         }
 
+        // page indicator
+        AnimatedVisibility(
+            visible = (!hideControlsOnIdle || !isControlsInactive) && standbyPages.size > 1,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                repeat(standbyPages.size) { index ->
+                    val isSelected = pagerState.currentPage == index
+                    val width by animateDpAsState(
+                        targetValue = if (isSelected) 20.dp else 8.dp,
+                        label = "page_indicator_width"
+                    )
+                    val color by animateColorAsState(
+                        targetValue = if (isSelected)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        label = "page_indicator_color"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .height(8.dp)
+                            .width(width)
+                            .background(
+                                color = color,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                    )
+                }
+            }
+        }
+
         AnimatedVisibility(
             visible = showSettingsDialog,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
@@ -618,6 +716,21 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                 onConfirmImportEnabledChange = { viewModel.setConfirmImportEnabled(it) },
                 appWidgetsEnabled = appWidgetsEnabled,
                 onAppWidgetsEnabledChange = { viewModel.setAppWidgetsEnabled(it) },
+                nightModeEnabled = nightModeEnabled,
+                onNightModeEnabledChange = { viewModel.setNightModeEnabled(it) },
+                nightStartHour = nightStartHour,
+                nightStartMinute = nightStartMinute,
+                onNightStartTimeChange = { h, m -> viewModel.setNightStartTime(h, m) },
+                nightEndHour = nightEndHour,
+                nightEndMinute = nightEndMinute,
+                onNightEndTimeChange = { h, m -> viewModel.setNightEndTime(h, m) },
+                nightProtectionRatio = nightProtectionRatio,
+                onNightProtectionRatioChange = { viewModel.setNightProtectionRatio(it) },
+                nightBrightnessEnabled = nightBrightnessEnabled,
+                onNightBrightnessEnabledChange = { viewModel.setNightBrightnessEnabled(it) },
+                nightBrightnessValue = nightBrightnessValue,
+                onNightBrightnessValueChange = { viewModel.setNightBrightnessValue(it) },
+                isNightModeActive = isNightModeActive,
                 weatherLat = weatherLat,
                 weatherLon = weatherLon,
                 weatherCity = weatherCity,
@@ -882,5 +995,34 @@ private fun setWindowRefreshRate(window: android.view.Window, modeId: Int) {
     } catch (e: Exception) {
         e.printStackTrace()
     }
+}
+
+private fun performStrongHapticFeedback(context: Context, view: android.view.View?) {
+    try {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+
+        if (vibrator != null && vibrator.hasVibrator()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(40L)
+            }
+            return
+        }
+    } catch (_: Exception) {}
+
+    view?.performHapticFeedback(
+        HapticFeedbackConstants.LONG_PRESS,
+        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+    )
 }
 
