@@ -169,9 +169,9 @@
         let temp = 25;
         if (window.AndroidProviders && typeof window.AndroidProviders.getCurrentWeather == 'function') {
             temp = JSON.parse(window.AndroidProviders.getCurrentWeather()).temp;
-            document.getElementById('weather-display').innerHTML = ${temp}&deg;;
+            document.getElementById('weather-display').innerHTML = `${temp}&deg;`;
         } else {
-            document.getElementById('weather-display').innerHTML = ${temp}&deg;;
+            document.getElementById('weather-display').innerHTML = `${temp}&deg;`;
         }
     }
 
