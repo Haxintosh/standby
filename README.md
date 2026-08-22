@@ -66,8 +66,8 @@ OLED protection
   ![Shifting subpixel protection pattern overlay](img/oled_burn_example.png)
 
 ## App permissions
-- `INTERNET`**: Allow web plugins to fetch online data, local upload server and update providers. 
-- `VIBRATE`**: Duh.
+- `INTERNET`: Allow web plugins to fetch online data, local upload server and update providers. 
+- `VIBRATE`: Duh.
 - `QUERY_ALL_PACKAGES` Needed to use third party app widgets.
 
 
