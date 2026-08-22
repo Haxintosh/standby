@@ -32,7 +32,7 @@ The main difference between similar standby mode apps on the Play Store is that 
 - Local upload server
 
 ## Documentation 
-Docs for plugins can be found under [plugin docs](DOCS.md) 
+Docs for plugins can be found under [plugin docs](DOCS.md)   
 Example plugins are provided under `plugins/`.
 
 ## Images
