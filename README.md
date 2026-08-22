@@ -12,7 +12,6 @@ Standby is an open source, modular and extensible Android app similar to the Sta
 
 The main difference between similar standby mode apps on the Play Store is that Standby is open source, free and extensible using HTML/CSS/JS. 
 
----
 
 ## Install
 1. Download the latest [release APK](https://github.com/Haxintosh/standby/releases)   
@@ -20,8 +19,6 @@ The main difference between similar standby mode apps on the Play Store is that 
 3. If needed, allow installation from browser  
 4. Import plugins by using the local uploader or import the plugin ZIP files
 **Plugins can be found under: [plugins/build/](plugins/build/)**
-
---- 
 
 ## Implemented features
 - Extensible plugins using HTML/CSS/JS, check out [plugin docs](DOCS.md)
@@ -34,13 +31,9 @@ The main difference between similar standby mode apps on the Play Store is that 
 - Customization injection (no plugin reload for customizations)
 - Local upload server
 
----
-
 ## Documentation 
 Docs for plugins can be found under [plugin docs](DOCS.md) 
 Example plugins are provided under `plugins/`.
-
---- 
 
 ## Images
 ### Layouts
@@ -72,14 +65,11 @@ Night mode:
 OLED protection
   ![Shifting subpixel protection pattern overlay](img/oled_burn_example.png)
 
----
-
 ## App permissions
 - `INTERNET`**: Allow web plugins to fetch online data, local upload server and update providers. 
 - `VIBRATE`**: Duh.
 - `QUERY_ALL_PACKAGES` Needed to use third party app widgets.
 
---- 
 
 ## Building
 1. Run the Gradle build task:
