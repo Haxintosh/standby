@@ -17,7 +17,7 @@ The main difference between similar standby mode apps on the Play Store is that 
 1. Download the latest [release APK](https://github.com/Haxintosh/standby/releases)   
 2. Tap on the downloaded APK
 3. If needed, allow installation from browser  
-4. Import plugins by using the local uploader or import the plugin ZIP files
+4. Import plugins by using the local uploader or import the plugin ZIP files  
 **Plugins can be found under: [plugins/build/](plugins/build/)**
 
 ## Implemented features
