@@ -127,7 +127,6 @@ class MainActivity : ComponentActivity() {
 fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = viewModel()) {
     val plugins by viewModel.plugins.collectAsState()
     val standbyPages by viewModel.standbyPages.collectAsState()
-    val pagerState = rememberPagerState(pageCount = { standbyPages.size })
     val context = LocalContext.current
     
     val serverIp by viewModel.serverIp.collectAsState()
@@ -162,6 +161,8 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
     val weatherLastUpdate by viewModel.weatherLastUpdate.collectAsState()
     val pluginRefreshTriggers by viewModel.pluginRefreshTriggers.collectAsState()
 
+    val supportedRefreshRates = rememberSupportedRefreshRates()
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -184,73 +185,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             lastPendingImport = pendingImport
         }
     }
-    var lastInteractionTime by remember { mutableStateOf(System.currentTimeMillis()) }
-    var isInactive by remember { mutableStateOf(true) }
-    var isControlsInactive by remember { mutableStateOf(false) }
 
-    val display = remember(context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            context.display
-        } else {
-            @Suppress("DEPRECATION")
-            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
-        }
-    }
-    
-    val supportedRefreshRates = remember(display) {
-        val modes = display?.supportedModes ?: emptyArray()
-        modes.map { Math.round(it.refreshRate) }
-            .distinct()
-            .sorted()
-    }
-
-    // set refresh rate
-    LaunchedEffect(supportedRefreshRates, lowRefreshRateValue) {
-        if (supportedRefreshRates.isNotEmpty() && lowRefreshRateValue !in supportedRefreshRates) {
-            viewModel.setLowRefreshRateValue(supportedRefreshRates.first())
-        }
-    }
-
-    LaunchedEffect(lastInteractionTime) {
-        isControlsInactive = false
-        delay(5000L)
-        isControlsInactive = true
-    }
-
-    LaunchedEffect(lastInteractionTime, delayAfterInteraction) {
-        if (delayAfterInteraction) {
-            isInactive = false
-            val elapsed = System.currentTimeMillis() - lastInteractionTime
-            val remaining = 5000L - elapsed
-            if (remaining > 0) {
-                delay(remaining)
-            }
-            isInactive = true
-        } else {
-            isInactive = true
-        }
-    }
-
-    // refresh rate adjustment
-    LaunchedEffect(lastInteractionTime, lowRefreshRateEnabled, lowRefreshRateValue) {
-        if (lowRefreshRateEnabled) {
-            // restore default refresh rate
-            setWindowRefreshRate(window, 0)
-            
-            // wait for inactivity
-            delay(5000L)
-            
-            // check low refresh rate mode
-            val targetMode = display?.supportedModes?.firstOrNull { Math.round(it.refreshRate) == lowRefreshRateValue }
-            if (targetMode != null) {
-                setWindowRefreshRate(window, targetMode.modeId)
-            }
-        } else {
-            // disable low refresh rate
-            setWindowRefreshRate(window, 0)
-        }
-    }
-    
     // AppWidgetHost management
     val appWidgetHost = remember(context) { AppWidgetHostHelper.getHost(context) }
     val activity = context as? Activity
@@ -262,37 +197,6 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         } else {
             AppWidgetHostHelper.stopListening()
         }
-    }
-
-    LaunchedEffect(isNightModeActive, nightBrightnessEnabled, nightBrightnessValue) {
-        val layoutParams = window.attributes
-        if (isNightModeActive && nightBrightnessEnabled) {
-            layoutParams.screenBrightness = nightBrightnessValue.coerceIn(0.01f, 1.0f)
-        } else {
-            layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
-        window.attributes = layoutParams
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            val layoutParams = window.attributes
-            layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-            window.attributes = layoutParams
-        }
-    }
-
-    val view = LocalView.current
-    var isFirstPageLoad by remember { mutableStateOf(true) }
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }
-            .collect {
-                if (isFirstPageLoad) {
-                    isFirstPageLoad = false
-                } else {
-                    performStrongHapticFeedback(context, view)
-                }
-            }
     }
 
     var showAppWidgetPicker by remember { mutableStateOf(false) }
@@ -374,122 +278,15 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF0A0A0A))
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        awaitPointerEvent(PointerEventPass.Initial)
-                        lastInteractionTime = System.currentTimeMillis()
-                    }
-                }
-            }
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            val standbyPage = standbyPages.getOrNull(page)
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (standbyPage != null) {
-                    when (standbyPage) {
-                        is StandbyPage.FullWidth -> {
-                            when (val item = standbyPage.item) {
-                                is StandbyItem.Plugin -> {
-                                    PluginWebView(
-                                        plugin = item.plugin,
-                                        modifier = Modifier.fillMaxSize(),
-                                        refreshTrigger = pluginRefreshTriggers[item.plugin.localId] ?: 0L,
-                                        onLongClick = {
-                                            selectedPluginLocalIdForInfo = item.plugin.localId
-                                        }
-                                    )
-                                }
-                                is StandbyItem.NativeAppWidget -> {
-                                    AppWidgetView(
-                                        appWidgetHost = appWidgetHost,
-                                        appWidgetId = item.appWidgetId,
-                                        providerInfo = item.providerInfo,
-                                        modifier = Modifier.fillMaxSize(),
-                                        onLongClick = {
-                                            selectedAppWidgetForInfo = item
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        is StandbyPage.HalfWidth -> {
-                            Row(modifier = Modifier.fillMaxSize()) {
-                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                    when (val item = standbyPage.leftItem) {
-                                        is StandbyItem.Plugin -> {
-                                            PluginWebView(
-                                                plugin = item.plugin,
-                                                modifier = Modifier.fillMaxSize(),
-                                                refreshTrigger = pluginRefreshTriggers[item.plugin.localId] ?: 0L,
-                                                onLongClick = {
-                                                    selectedPluginLocalIdForInfo = item.plugin.localId
-                                                }
-                                            )
-                                        }
-                                        is StandbyItem.NativeAppWidget -> {
-                                            AppWidgetView(
-                                                appWidgetHost = appWidgetHost,
-                                                appWidgetId = item.appWidgetId,
-                                                providerInfo = item.providerInfo,
-                                                modifier = Modifier.fillMaxSize(),
-                                                onLongClick = {
-                                                    selectedAppWidgetForInfo = item
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                                Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                                    when (val item = standbyPage.rightItem) {
-                                        is StandbyItem.Plugin -> {
-                                            PluginWebView(
-                                                plugin = item.plugin,
-                                                modifier = Modifier.fillMaxSize(),
-                                                refreshTrigger = pluginRefreshTriggers[item.plugin.localId] ?: 0L,
-                                                onLongClick = {
-                                                    selectedPluginLocalIdForInfo = item.plugin.localId
-                                                }
-                                            )
-                                        }
-                                        is StandbyItem.NativeAppWidget -> {
-                                            AppWidgetView(
-                                                appWidgetHost = appWidgetHost,
-                                                appWidgetId = item.appWidgetId,
-                                                providerInfo = item.providerInfo,
-                                                modifier = Modifier.fillMaxSize(),
-                                                onLongClick = {
-                                                    selectedAppWidgetForInfo = item
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                val effectiveProtectionRatio = if (isNightModeActive) nightProtectionRatio else protectionRatio
-                val effectiveBurnInProtection = burnInProtectionEnabled || isNightModeActive
-                if (effectiveBurnInProtection && isInactive) {
-                    PixelPerfectBurnInMask(
-                        modifier = Modifier.fillMaxSize(),
-                        protectionRatio = effectiveProtectionRatio
-                    )
-                }
-            }
-        }
-
+    StandbyDisplay(
+        window = window,
+        viewModel = viewModel,
+        onPluginLongClick = { selectedPluginLocalIdForInfo = it },
+        onWidgetLongClick = { selectedAppWidgetForInfo = it },
+    ) { controlsVisible, activePage ->
         // settings button
         AnimatedVisibility(
-            visible = !hideControlsOnIdle || !isControlsInactive,
+            visible = controlsVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -513,7 +310,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
 
         // layouts button
         AnimatedVisibility(
-            visible = !hideControlsOnIdle || !isControlsInactive,
+            visible = controlsVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -535,7 +332,6 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
             }
         }
 
-        val activePage = standbyPages.getOrNull(pagerState.currentPage)
         val hasCustomization = when (activePage) {
             is StandbyPage.FullWidth -> activePage.plugin?.customizations?.isNotEmpty() == true
             is StandbyPage.HalfWidth -> (activePage.leftPlugin?.customizations?.isNotEmpty() == true) || (activePage.rightPlugin?.customizations?.isNotEmpty() == true)
@@ -544,7 +340,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
 
         // customization button
         AnimatedVisibility(
-            visible = activePage != null && hasCustomization && (!hideControlsOnIdle || !isControlsInactive),
+            visible = activePage != null && hasCustomization && (controlsVisible),
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -568,7 +364,7 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
         
         // status info
         AnimatedVisibility(
-            visible = serverPort > 0 && (!hideControlsOnIdle || !isControlsInactive),
+            visible = serverPort > 0 && (controlsVisible),
             enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier.align(Alignment.TopCenter)
@@ -637,52 +433,6 @@ fun StandbyScreen(window: android.view.Window, viewModel: StandbyViewModel = vie
                             letterSpacing = 1.sp
                         )
                     }
-                }
-            }
-        }
-
-        // page indicator
-        AnimatedVisibility(
-            visible = (!hideControlsOnIdle || !isControlsInactive) && standbyPages.size > 1,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                repeat(standbyPages.size) { index ->
-                    val isSelected = pagerState.currentPage == index
-                    val width by animateDpAsState(
-                        targetValue = if (isSelected) 20.dp else 8.dp,
-                        label = "page_indicator_width"
-                    )
-                    val color by animateColorAsState(
-                        targetValue = if (isSelected)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        label = "page_indicator_color"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .height(8.dp)
-                            .width(width)
-                            .background(
-                                color = color,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                    )
                 }
             }
         }
@@ -985,44 +735,5 @@ fun PixelPerfectBurnInMask(
     }
 }
 
-private fun setWindowRefreshRate(window: android.view.Window, modeId: Int) {
-    try {
-        val layoutParams = window.attributes
-        if (layoutParams.preferredDisplayModeId != modeId) {
-            layoutParams.preferredDisplayModeId = modeId
-            window.attributes = layoutParams
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-}
 
-private fun performStrongHapticFeedback(context: Context, view: android.view.View?) {
-    try {
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-            vibratorManager?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-        }
-
-        if (vibrator != null && vibrator.hasVibrator()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK))
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(40, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(40L)
-            }
-            return
-        }
-    } catch (_: Exception) {}
-
-    view?.performHapticFeedback(
-        HapticFeedbackConstants.LONG_PRESS,
-        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-    )
-}
 

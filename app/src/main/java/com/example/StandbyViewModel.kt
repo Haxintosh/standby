@@ -25,130 +25,80 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     private val _standbyPages = MutableStateFlow<List<StandbyPage>>(emptyList())
     val standbyPages: StateFlow<List<StandbyPage>> = _standbyPages.asStateFlow()
 
-    private val sharedPreferences = application.getSharedPreferences("standby_settings", Context.MODE_PRIVATE)
+    private val container = (application as StandbyApplication).container
+    private val settings = container.settings
+    private val services = container.services
 
-    private val _burnInProtectionEnabled = MutableStateFlow(sharedPreferences.getBoolean("burn_in_protection", true))
-    val burnInProtectionEnabled: StateFlow<Boolean> = _burnInProtectionEnabled.asStateFlow()
+    /**
+     * Stored reference so onCleared can check identity before clearing it. Declared here
+     * rather than next to the function because init assigns it, and Kotlin initialises
+     * properties in declaration order.
+     */
+    private val uploadHandler: (java.io.File, String) -> Unit = ::handlePluginUpload
 
-    private val _delayAfterInteraction = MutableStateFlow(sharedPreferences.getBoolean("delay_after_interaction", false))
-    val delayAfterInteraction: StateFlow<Boolean> = _delayAfterInteraction.asStateFlow()
+    // Settings are re-exposed straight from the repository rather than mirrored here, so
+    // there is one copy of each value and one place it can be changed.
+    val burnInProtectionEnabled: StateFlow<Boolean> = settings.burnInProtectionEnabled
+    val delayAfterInteraction: StateFlow<Boolean> = settings.delayAfterInteraction
+    val protectionRatio: StateFlow<Int> = settings.protectionRatio
+    val hideControlsOnIdle: StateFlow<Boolean> = settings.hideControlsOnIdle
+    val lowRefreshRateEnabled: StateFlow<Boolean> = settings.lowRefreshRateEnabled
+    val lowRefreshRateValue: StateFlow<Int> = settings.lowRefreshRateValue
 
-    private val _protectionRatio = MutableStateFlow(sharedPreferences.getInt("protection_ratio", 1))
-    val protectionRatio: StateFlow<Int> = _protectionRatio.asStateFlow()
-
-    private val _hideControlsOnIdle = MutableStateFlow(sharedPreferences.getBoolean("hide_controls_on_idle", true))
-    val hideControlsOnIdle: StateFlow<Boolean> = _hideControlsOnIdle.asStateFlow()
-
-    private val _lowRefreshRateEnabled = MutableStateFlow(sharedPreferences.getBoolean("low_refresh_rate_enabled", false))
-    val lowRefreshRateEnabled: StateFlow<Boolean> = _lowRefreshRateEnabled.asStateFlow()
-
-    private val _lowRefreshRateValue = MutableStateFlow(sharedPreferences.getInt("low_refresh_rate_value", 60))
-    val lowRefreshRateValue: StateFlow<Int> = _lowRefreshRateValue.asStateFlow()
-
-    private var pluginServer: PluginServer? = null
-
-    private val _isServerRunning = MutableStateFlow(false)
-    val isServerRunning: StateFlow<Boolean> = _isServerRunning.asStateFlow()
-
-    private val _serverPort = MutableStateFlow(0)
-    val serverPort: StateFlow<Int> = _serverPort.asStateFlow()
-
-    private val _serverPin = MutableStateFlow("")
-    val serverPin: StateFlow<String> = _serverPin.asStateFlow()
-
-    private val _serverIp = MutableStateFlow("")
-    val serverIp: StateFlow<String> = _serverIp.asStateFlow()
+    val isServerRunning: StateFlow<Boolean> = services.isServerRunning
+    val serverPort: StateFlow<Int> = services.serverPort
+    val serverPin: StateFlow<String> = services.serverPin
+    val serverIp: StateFlow<String> = services.serverIp
 
     private val _pendingImport = MutableStateFlow<PendingPluginImport?>(null)
     val pendingImport: StateFlow<PendingPluginImport?> = _pendingImport.asStateFlow()
 
-    private val _confirmImportEnabled = MutableStateFlow(sharedPreferences.getBoolean("confirm_plugin_import", true))
-    val confirmImportEnabled: StateFlow<Boolean> = _confirmImportEnabled.asStateFlow()
+    val confirmImportEnabled: StateFlow<Boolean> = settings.confirmImportEnabled
 
-    fun setConfirmImportEnabled(enabled: Boolean) {
-        _confirmImportEnabled.value = enabled
-        sharedPreferences.edit().putBoolean("confirm_plugin_import", enabled).apply()
-    }
+    fun setConfirmImportEnabled(enabled: Boolean) = settings.setConfirmImportEnabled(enabled)
 
-    private val _appWidgetsEnabled = MutableStateFlow(sharedPreferences.getBoolean("app_widgets_enabled", true))
-    val appWidgetsEnabled: StateFlow<Boolean> = _appWidgetsEnabled.asStateFlow()
+    val appWidgetsEnabled: StateFlow<Boolean> = settings.appWidgetsEnabled
 
     fun setAppWidgetsEnabled(enabled: Boolean) {
-        _appWidgetsEnabled.value = enabled
-        sharedPreferences.edit().putBoolean("app_widgets_enabled", enabled).apply()
+        settings.setAppWidgetsEnabled(enabled)
         rebuildStandbyPages()
     }
 
-    private val _nightModeEnabled = MutableStateFlow(sharedPreferences.getBoolean("night_mode_enabled", false))
-    val nightModeEnabled: StateFlow<Boolean> = _nightModeEnabled.asStateFlow()
-
-    private val _nightStartHour = MutableStateFlow(sharedPreferences.getInt("night_mode_start_hour", 22))
-    val nightStartHour: StateFlow<Int> = _nightStartHour.asStateFlow()
-
-    private val _nightStartMinute = MutableStateFlow(sharedPreferences.getInt("night_mode_start_minute", 0))
-    val nightStartMinute: StateFlow<Int> = _nightStartMinute.asStateFlow()
-
-    private val _nightEndHour = MutableStateFlow(sharedPreferences.getInt("night_mode_end_hour", 7))
-    val nightEndHour: StateFlow<Int> = _nightEndHour.asStateFlow()
-
-    private val _nightEndMinute = MutableStateFlow(sharedPreferences.getInt("night_mode_end_minute", 0))
-    val nightEndMinute: StateFlow<Int> = _nightEndMinute.asStateFlow()
-
-    private val _nightProtectionRatio = MutableStateFlow(sharedPreferences.getInt("night_protection_ratio", 4))
-    val nightProtectionRatio: StateFlow<Int> = _nightProtectionRatio.asStateFlow()
-
-    private val _nightBrightnessEnabled = MutableStateFlow(sharedPreferences.getBoolean("night_brightness_enabled", true))
-    val nightBrightnessEnabled: StateFlow<Boolean> = _nightBrightnessEnabled.asStateFlow()
-
-    private val _nightBrightnessValue = MutableStateFlow(sharedPreferences.getFloat("night_brightness_value", 0.05f))
-    val nightBrightnessValue: StateFlow<Float> = _nightBrightnessValue.asStateFlow()
+    val nightModeEnabled: StateFlow<Boolean> = settings.nightModeEnabled
+    val nightStartHour: StateFlow<Int> = settings.nightStartHour
+    val nightStartMinute: StateFlow<Int> = settings.nightStartMinute
+    val nightEndHour: StateFlow<Int> = settings.nightEndHour
+    val nightEndMinute: StateFlow<Int> = settings.nightEndMinute
+    val nightProtectionRatio: StateFlow<Int> = settings.nightProtectionRatio
+    val nightBrightnessEnabled: StateFlow<Boolean> = settings.nightBrightnessEnabled
+    val nightBrightnessValue: StateFlow<Float> = settings.nightBrightnessValue
 
     private val _isNightModeActive = MutableStateFlow(false)
     val isNightModeActive: StateFlow<Boolean> = _isNightModeActive.asStateFlow()
 
     fun setNightModeEnabled(enabled: Boolean) {
-        _nightModeEnabled.value = enabled
-        sharedPreferences.edit().putBoolean("night_mode_enabled", enabled).apply()
+        settings.setNightModeEnabled(enabled)
         updateNightModeActiveState()
     }
 
     fun setNightStartTime(hour: Int, minute: Int) {
-        _nightStartHour.value = hour
-        _nightStartMinute.value = minute
-        sharedPreferences.edit()
-            .putInt("night_mode_start_hour", hour)
-            .putInt("night_mode_start_minute", minute)
-            .apply()
+        settings.setNightStartTime(hour, minute)
         updateNightModeActiveState()
     }
 
     fun setNightEndTime(hour: Int, minute: Int) {
-        _nightEndHour.value = hour
-        _nightEndMinute.value = minute
-        sharedPreferences.edit()
-            .putInt("night_mode_end_hour", hour)
-            .putInt("night_mode_end_minute", minute)
-            .apply()
+        settings.setNightEndTime(hour, minute)
         updateNightModeActiveState()
     }
 
-    fun setNightProtectionRatio(ratio: Int) {
-        _nightProtectionRatio.value = ratio
-        sharedPreferences.edit().putInt("night_protection_ratio", ratio).apply()
-    }
+    fun setNightProtectionRatio(ratio: Int) = settings.setNightProtectionRatio(ratio)
 
-    fun setNightBrightnessEnabled(enabled: Boolean) {
-        _nightBrightnessEnabled.value = enabled
-        sharedPreferences.edit().putBoolean("night_brightness_enabled", enabled).apply()
-    }
+    fun setNightBrightnessEnabled(enabled: Boolean) = settings.setNightBrightnessEnabled(enabled)
 
-    fun setNightBrightnessValue(value: Float) {
-        _nightBrightnessValue.value = value
-        sharedPreferences.edit().putFloat("night_brightness_value", value).apply()
-    }
+    fun setNightBrightnessValue(value: Float) = settings.setNightBrightnessValue(value)
 
     fun updateNightModeActiveState(cal: Calendar = Calendar.getInstance()) {
-        if (!_nightModeEnabled.value) {
+        if (!settings.nightModeEnabled.value) {
             _isNightModeActive.value = false
             return
         }
@@ -157,29 +107,23 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         _isNightModeActive.value = isNightTime(
             currentHour = currentHour,
             currentMinute = currentMinute,
-            startHour = _nightStartHour.value,
-            startMinute = _nightStartMinute.value,
-            endHour = _nightEndHour.value,
-            endMinute = _nightEndMinute.value
+            startHour = settings.nightStartHour.value,
+            startMinute = settings.nightStartMinute.value,
+            endHour = settings.nightEndHour.value,
+            endMinute = settings.nightEndMinute.value
         )
     }
 
-    val providerManager = ProviderManager(application)
 
-    private val _weatherLat = MutableStateFlow(sharedPreferences.getString("weather_lat", "52.52") ?: "52.52")
-    val weatherLat: StateFlow<String> = _weatherLat.asStateFlow()
 
-    private val _weatherLon = MutableStateFlow(sharedPreferences.getString("weather_lon", "13.41") ?: "13.41")
-    val weatherLon: StateFlow<String> = _weatherLon.asStateFlow()
-
-    private val _weatherCity = MutableStateFlow(sharedPreferences.getString("weather_city", "Berlin") ?: "Berlin")
-    val weatherCity: StateFlow<String> = _weatherCity.asStateFlow()
-
-    private val _weatherUseGps = MutableStateFlow(sharedPreferences.getBoolean("weather_use_gps", false))
-    val weatherUseGps: StateFlow<Boolean> = _weatherUseGps.asStateFlow()
-
-    private val _weatherLastUpdate = MutableStateFlow(sharedPreferences.getLong("weather_last_update", 0L))
-    val weatherLastUpdate: StateFlow<Long> = _weatherLastUpdate.asStateFlow()
+    // ProviderManager writes weather_lat / weather_lon / weather_city / weather_last_update
+    // to the same prefs file, so the repository's change listener picks those up on its own.
+    // The old code re-read them by hand after every fetch.
+    val weatherLat: StateFlow<String> = settings.weatherLat
+    val weatherLon: StateFlow<String> = settings.weatherLon
+    val weatherCity: StateFlow<String> = settings.weatherCity
+    val weatherUseGps: StateFlow<Boolean> = settings.weatherUseGps
+    val weatherLastUpdate: StateFlow<Long> = settings.weatherLastUpdate
 
     private val _pluginRefreshTriggers = MutableStateFlow<Map<String, Long>>(emptyMap())
     val pluginRefreshTriggers: StateFlow<Map<String, Long>> = _pluginRefreshTriggers.asStateFlow()
@@ -231,35 +175,21 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setWeatherLocation(lat: String, lon: String, city: String) {
-        _weatherLat.value = lat
-        _weatherLon.value = lon
-        _weatherCity.value = city
-        sharedPreferences.edit()
-            .putString("weather_lat", lat)
-            .putString("weather_lon", lon)
-            .putString("weather_city", city)
-            .apply()
+        settings.setWeatherLocation(lat, lon, city)
         triggerWeatherRefresh()
     }
 
     fun setWeatherUseGps(enabled: Boolean) {
-        _weatherUseGps.value = enabled
-        sharedPreferences.edit().putBoolean("weather_use_gps", enabled).apply()
+        settings.setWeatherUseGps(enabled)
         triggerWeatherRefresh()
     }
 
     fun triggerWeatherRefresh() {
-        viewModelScope.launch {
-            providerManager.fetchWeather()
-            _weatherLat.value = sharedPreferences.getString("weather_lat", "52.52") ?: "52.52"
-            _weatherLon.value = sharedPreferences.getString("weather_lon", "13.41") ?: "13.41"
-            _weatherCity.value = sharedPreferences.getString("weather_city", "Berlin") ?: "Berlin"
-            _weatherLastUpdate.value = sharedPreferences.getLong("weather_last_update", 0L)
-        }
+        viewModelScope.launch { services.providerManager.fetchWeather() }
     }
 
     suspend fun searchLocations(query: String): List<ProviderManager.GeocodingResult> {
-        return providerManager.searchLocations(query)
+        return services.providerManager.searchLocations(query)
     }
 
     init {
@@ -272,10 +202,9 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         loadPlugins()
-        if (sharedPreferences.getBoolean("server_enabled", false)) {
-            startServer()
-        }
-        providerManager.startHourlyWeatherUpdates(viewModelScope)
+        // The server and the weather poller belong to StandbyServices now. All this has
+        // to do is say where an upload should land.
+        services.onPluginUploaded = uploadHandler
     }
 
     fun loadPlugins() {
@@ -283,7 +212,7 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
             val list = mutableListOf<PluginModel>()
             
             // add built-in clock
-            list.add(DefaultPlugins.getBuiltInClockPlugin(sharedPreferences))
+            list.add(DefaultPlugins.getBuiltInClockPlugin(settings.preferences))
 
             // load registered plugins
             val context = getApplication<Application>()
@@ -303,7 +232,7 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
     private fun resolveStandbyItem(context: Context, localId: String?, installed: List<PluginModel>): StandbyItem? {
         if (localId.isNullOrBlank()) return null
         if (localId.startsWith("appwidget:")) {
-            if (!_appWidgetsEnabled.value) return null
+            if (!settings.appWidgetsEnabled.value) return null
             val appWidgetId = localId.removePrefix("appwidget:").toIntOrNull()
             if (appWidgetId != null) {
                 val providerInfo = AppWidgetHostHelper.getAppWidgetInfo(context, appWidgetId)
@@ -606,7 +535,9 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         val updatedList = currentList.map { plugin ->
             if (plugin.localId == pluginLocalId) {
                 if (plugin.isBuiltIn) {
-                    sharedPreferences.edit().putString("builtin_customization_${pluginLocalId}_${varName}", varValue).apply()
+                    settings.preferences.edit()
+                        .putString("builtin_customization_${pluginLocalId}_${varName}", varValue)
+                        .apply()
                     val updatedCustomizations = plugin.customizations.mapValues { (key, option) ->
                         if (key == varName) option.copy(value = varValue) else option
                     }
@@ -653,93 +584,44 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         _standbyPages.value = updatedPages
     }
 
-    fun setBurnInProtectionEnabled(enabled: Boolean) {
-        _burnInProtectionEnabled.value = enabled
-        sharedPreferences.edit().putBoolean("burn_in_protection", enabled).apply()
-    }
+    fun setBurnInProtectionEnabled(enabled: Boolean) = settings.setBurnInProtectionEnabled(enabled)
 
-    fun setDelayAfterInteraction(enabled: Boolean) {
-        _delayAfterInteraction.value = enabled
-        sharedPreferences.edit().putBoolean("delay_after_interaction", enabled).apply()
-    }
+    fun setDelayAfterInteraction(enabled: Boolean) = settings.setDelayAfterInteraction(enabled)
 
-    fun setProtectionRatio(ratio: Int) {
-        _protectionRatio.value = ratio
-        sharedPreferences.edit().putInt("protection_ratio", ratio).apply()
-    }
+    fun setProtectionRatio(ratio: Int) = settings.setProtectionRatio(ratio)
 
-    fun setHideControlsOnIdle(enabled: Boolean) {
-        _hideControlsOnIdle.value = enabled
-        sharedPreferences.edit().putBoolean("hide_controls_on_idle", enabled).apply()
-    }
+    fun setHideControlsOnIdle(enabled: Boolean) = settings.setHideControlsOnIdle(enabled)
 
-    fun setLowRefreshRateEnabled(enabled: Boolean) {
-        _lowRefreshRateEnabled.value = enabled
-        sharedPreferences.edit().putBoolean("low_refresh_rate_enabled", enabled).apply()
-    }
+    fun setLowRefreshRateEnabled(enabled: Boolean) = settings.setLowRefreshRateEnabled(enabled)
 
-    fun setLowRefreshRateValue(value: Int) {
-        _lowRefreshRateValue.value = value
-        sharedPreferences.edit().putInt("low_refresh_rate_value", value).apply()
-    }
+    fun setLowRefreshRateValue(value: Int) = settings.setLowRefreshRateValue(value)
 
-    fun setServerEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean("server_enabled", enabled).apply()
-        if (enabled) {
-            startServer()
-        } else {
-            stopServer()
-        }
-    }
+    fun setServerEnabled(enabled: Boolean) = settings.setServerEnabled(enabled)
 
-    private fun startServer() {
-        if (pluginServer != null) return
-        val server = PluginServer(
-            context = getApplication(),
-            onPluginReceived = { file, contentType ->
-                viewModelScope.launch {
-                    try {
-                        val context = getApplication<Application>()
-                        val pending = if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
-                            file.inputStream().use { input ->
-                                PluginManager.prepareZipPluginImport(context, input, file.name)
-                            }
-                        } else {
-                            PluginManager.prepareHtmlPluginImport(context, file.readText(), "Uploaded Plugin")
-                        }
-                        if (_confirmImportEnabled.value) {
-                            _pendingImport.value = pending
-                        } else {
-                            PluginManager.completePendingImport(context, pending, pending.name)
-                            loadPlugins()
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        // PluginServer hands us ownership of this temp file.
-                        file.delete()
+    private fun handlePluginUpload(file: java.io.File, contentType: String) {
+        viewModelScope.launch {
+            try {
+                val context = getApplication<Application>()
+                val pending = if (contentType.contains("application/zip") || file.name.endsWith(".zip")) {
+                    file.inputStream().use { input ->
+                        PluginManager.prepareZipPluginImport(context, input, file.name)
                     }
+                } else {
+                    PluginManager.prepareHtmlPluginImport(context, file.readText(), "Uploaded Plugin")
                 }
+                if (settings.confirmImportEnabled.value) {
+                    _pendingImport.value = pending
+                } else {
+                    PluginManager.completePendingImport(context, pending, pending.name)
+                    loadPlugins()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                // StandbyServices hands us ownership of this temp file.
+                file.delete()
             }
-        )
-        if (server.start()) {
-            pluginServer = server
-            _serverPort.value = server.port
-            _serverPin.value = server.pin
-            _serverIp.value = server.ipAddress
-            _isServerRunning.value = true
-        } else {
-            _isServerRunning.value = false
         }
-    }
-
-    private fun stopServer() {
-        pluginServer?.stop()
-        pluginServer = null
-        _serverPort.value = 0
-        _serverPin.value = ""
-        _serverIp.value = ""
-        _isServerRunning.value = false
     }
 
     fun loadPluginFromFile(context: Context, uri: Uri) {
@@ -753,7 +635,7 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
                         val htmlContent = inputStream.bufferedReader().readText()
                         PluginManager.prepareHtmlPluginImport(context, htmlContent, fileName)
                     }
-                    if (_confirmImportEnabled.value) {
+                    if (settings.confirmImportEnabled.value) {
                         _pendingImport.value = pending
                     } else {
                         PluginManager.completePendingImport(context, pending, pending.name)
@@ -808,7 +690,7 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
         if (trimmed.isBlank()) return
         val context = getApplication<Application>()
         if (localId == "com.example.builtin.clock") {
-            DefaultPlugins.renameBuiltInPlugin(sharedPreferences, localId, trimmed)
+            DefaultPlugins.renameBuiltInPlugin(settings.preferences, localId, trimmed)
             loadPlugins()
         } else {
             if (PluginManager.renamePlugin(context, localId, trimmed)) {
@@ -819,8 +701,12 @@ class StandbyViewModel(application: Application) : AndroidViewModel(application)
 
     override fun onCleared() {
         super.onCleared()
-        pluginServer?.stop()
-        providerManager.stopWeatherUpdates()
+        // The server and weather poller outlive this ViewModel by design, so nothing to
+        // tear down here. Drop the upload handler so a cleared ViewModel is not still
+        // being handed files.
+        if (services.onPluginUploaded === uploadHandler) {
+            services.onPluginUploaded = null
+        }
     }
 
     companion object {

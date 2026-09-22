@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar" />
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar">
+        <!-- Without this the window is the platform default until Compose paints, which
+             on a dream shows as a light flash over the lock screen. -->
+        <item name="android:windowBackground">@color/standby_background</item>
+    </style>
 </resources>
